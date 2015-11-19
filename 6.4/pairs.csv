@@ -1,0 +1,209 @@
+Source	Target
+Accounting	Finance
+Finance	Accounting
+Anthropology	Law
+Law	Anthropology
+Anthropology	International Development
+International Development	Anthropology
+Economic History	International Development
+International Development	Economic History
+Economics	Finance
+Finance	Economics
+Economics	Geography and Environment
+Geography and Environment	Economics
+Geography and Environment	International Development
+International Development	Geography and Environment
+Accounting	Economics
+Accounting	Finance
+Accounting	Geography and Environment
+Economics	Accounting
+Economics	Finance
+Economics	Geography and Environment
+Finance	Accounting
+Finance	Economics
+Finance	Geography and Environment
+Geography and Environment	Accounting
+Geography and Environment	Economics
+Geography and Environment	Finance
+Economics	Government
+Government	Economics
+Government	International History
+International History	Government
+Government	International Relations
+International Relations	Government
+Government	Philosophy
+Philosophy	Government
+EI	Government
+EI	International Development
+EI	International Relations
+Government	EI
+Government	International Development
+Government	International Relations
+International Development	EI
+International Development	Government
+International Development	International Relations
+International Relations	EI
+International Relations	Government
+International Relations	International Development
+EI	Government
+EI	Sociology
+Government	EI
+Government	Sociology
+Sociology	EI
+Sociology	Government
+EI	Government
+EI	International Relations
+Government	EI
+Government	International Relations
+International Relations	EI
+International Relations	Government
+Government	Law
+Law	Government
+International History	International Relations
+International Relations	International History
+Accounting	Law
+Law	Accounting
+Economics	Management
+Management	Economics
+International Relations	Management
+Management	International Relations
+Economics	Mathematics
+Mathematics	Economics
+Finance	Mathematics
+Finance	Statistics
+Mathematics	Finance
+Mathematics	Statistics
+Statistics	Finance
+Statistics	Mathematics
+Economics	Logic
+Economics	Philosophy
+Economics	Scientific Method
+Logic	Economics
+Logic	Philosophy
+Logic	Scientific Method
+Philosophy	Economics
+Philosophy	Logic
+Philosophy	Scientific Method
+Scientific Method	Economics
+Scientific Method	Logic
+Scientific Method	Philosophy
+Economics	Government
+Economics	Philosophy
+Government	Economics
+Government	Philosophy
+Philosophy	Economics
+Philosophy	Government
+Economics	Social Policy
+Social Policy	Economics
+Social Policy	Sociology
+Sociology	Social Policy
+Government	Social Policy
+Social Policy	Government
+London School of Hygiene and Tropical Medicine	Social Policy
+Social Policy	London School of Hygiene and Tropical Medicine
+Management	Social Policy
+Social Policy	Management
+Anthropology	Economics
+Anthropology	Gender
+Anthropology	Geography
+Anthropology	Government
+Anthropology	Law
+Anthropology	Media and Communications
+Anthropology	Social Policy
+Anthropology	Sociology
+Anthropology	Statistics
+Economics	Anthropology
+Economics	Gender
+Economics	Geography
+Economics	Government
+Economics	Law
+Economics	Media and Communications
+Economics	Social Policy
+Economics	Sociology
+Economics	Statistics
+Gender	Anthropology
+Gender	Economics
+Gender	Geography
+Gender	Government
+Gender	Law
+Gender	Media and Communications
+Gender	Social Policy
+Gender	Sociology
+Gender	Statistics
+Geography	Anthropology
+Geography	Economics
+Geography	Gender
+Geography	Government
+Geography	Law
+Geography	Media and Communications
+Geography	Social Policy
+Geography	Sociology
+Geography	Statistics
+Government	Anthropology
+Government	Economics
+Government	Gender
+Government	Geography
+Government	Law
+Government	Media and Communications
+Government	Social Policy
+Government	Sociology
+Government	Statistics
+Law	Anthropology
+Law	Economics
+Law	Gender
+Law	Geography
+Law	Government
+Law	Media and Communications
+Law	Social Policy
+Law	Sociology
+Law	Statistics
+Media and Communications	Anthropology
+Media and Communications	Economics
+Media and Communications	Gender
+Media and Communications	Geography
+Media and Communications	Government
+Media and Communications	Law
+Media and Communications	Social Policy
+Media and Communications	Sociology
+Media and Communications	Statistics
+Social Policy	Anthropology
+Social Policy	Economics
+Social Policy	Gender
+Social Policy	Geography
+Social Policy	Government
+Social Policy	Law
+Social Policy	Media and Communications
+Social Policy	Sociology
+Social Policy	Statistics
+Sociology	Anthropology
+Sociology	Economics
+Sociology	Gender
+Sociology	Geography
+Sociology	Government
+Sociology	Law
+Sociology	Media and Communications
+Sociology	Social Policy
+Sociology	Statistics
+Statistics	Anthropology
+Statistics	Economics
+Statistics	Gender
+Statistics	Geography
+Statistics	Government
+Statistics	Law
+Statistics	Media and Communications
+Statistics	Social Policy
+Statistics	Sociology
+Finance	Mathematics
+Finance	Statistics
+Mathematics	Finance
+Mathematics	Statistics
+Statistics	Finance
+Statistics	Mathematics
+Mathematics	Statistics
+Statistics	Mathematics
+International Development	NY Law School
+NY Law School	International Development
+Gender Institute	Media and Communications
+Media and Communications	Gender Institute
+Accounting	Law
+Law	Accounting
