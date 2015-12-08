@@ -1,0 +1,163 @@
+department1,department2,links
+Accounting,Finance,3
+Finance,Accounting,3
+Anthropology,Law,2
+Law,Anthropology,2
+Anthropology,International Development,2
+International Development,Anthropology,2
+Economic History,International Development,1
+International Development,Economic History,1
+Economics,Finance,1
+Finance,Economics,1
+Economics,Geography and Environment,2
+Geography and Environment,Economics,2
+Geography and Environment,International Development,1
+International Development,Geography and Environment,1
+Accounting,Economics,1
+Accounting,Geography and Environment,1
+Economics,Accounting,1
+Finance,Geography and Environment,1
+Geography and Environment,Accounting,1
+Geography and Environment,Finance,1
+Economics,Government,2
+Government,Economics,2
+Government,International History,2
+International History,Government,2
+Government,International Relations,2
+International Relations,Government,2
+Government,Philosophy,1
+Philosophy,Government,1
+EI,Government,1
+EI,International Development,1
+EI,International Relations,1
+Government,EI,1
+Government,International Development,1
+International Development,EI,1
+International Development,Government,1
+International Development,International Relations,1
+International Relations,EI,1
+International Relations,International Development,1
+EI,Sociology,1
+Government,Sociology,1
+Sociology,EI,1
+Sociology,Government,1
+Government,Law,1
+Law,Government,1
+International History,International Relations,3
+International Relations,International History,3
+Accounting,Law,1
+Law,Accounting,1
+Economics,Management,1
+Management,Economics,1
+International Relations,Management,1
+Management,International Relations,1
+Economics,Mathematics,2
+Mathematics,Economics,2
+Finance,Mathematics,1
+Finance,Statistics,1
+Mathematics,Finance,1
+Mathematics,Statistics,1
+Statistics,Finance,1
+Statistics,Mathematics,1
+Economics,Logic,2
+Economics,Philosophy,2
+Economics,Scientific Method,2
+Logic,Economics,2
+Logic,Philosophy,2
+Logic,Scientific Method,2
+Philosophy,Economics,2
+Philosophy,Logic,2
+Philosophy,Scientific Method,2
+Scientific Method,Economics,2
+Scientific Method,Logic,2
+Scientific Method,Philosophy,2
+Economics,Social Policy,1
+Social Policy,Economics,1
+Social Policy,Sociology,1
+Sociology,Social Policy,1
+Government,Social Policy,1
+Social Policy,Government,1
+London School of Hygiene and Tropical Medicine,Social Policy,1
+Social Policy,London School of Hygiene and Tropical Medicine,1
+Management,Social Policy,1
+Social Policy,Management,1
+Anthropology,Economics,1
+Anthropology,Gender,1
+Anthropology,Geography,1
+Anthropology,Government,1
+Anthropology,Media and Communications,1
+Anthropology,Social Policy,1
+Anthropology,Sociology,1
+Anthropology,Statistics,1
+Economics,Anthropology,1
+Economics,Gender,1
+Economics,Geography,1
+Economics,Law,1
+Economics,Media and Communications,1
+Economics,Sociology,1
+Economics,Statistics,1
+Gender,Anthropology,1
+Gender,Economics,1
+Gender,Geography,1
+Gender,Government,1
+Gender,Law,1
+Gender,Media and Communications,1
+Gender,Social Policy,1
+Gender,Sociology,1
+Gender,Statistics,1
+Geography,Anthropology,1
+Geography,Economics,1
+Geography,Gender,1
+Geography,Government,1
+Geography,Law,1
+Geography,Media and Communications,1
+Geography,Social Policy,1
+Geography,Sociology,1
+Geography,Statistics,1
+Government,Anthropology,1
+Government,Gender,1
+Government,Geography,1
+Government,Media and Communications,1
+Government,Statistics,1
+Law,Economics,1
+Law,Gender,1
+Law,Geography,1
+Law,Media and Communications,1
+Law,Social Policy,1
+Law,Sociology,1
+Law,Statistics,1
+Media and Communications,Anthropology,1
+Media and Communications,Economics,1
+Media and Communications,Gender,1
+Media and Communications,Geography,1
+Media and Communications,Government,1
+Media and Communications,Law,1
+Media and Communications,Social Policy,1
+Media and Communications,Sociology,1
+Media and Communications,Statistics,1
+Social Policy,Anthropology,1
+Social Policy,Gender,1
+Social Policy,Geography,1
+Social Policy,Law,1
+Social Policy,Media and Communications,1
+Social Policy,Statistics,1
+Sociology,Anthropology,1
+Sociology,Economics,1
+Sociology,Gender,1
+Sociology,Geography,1
+Sociology,Law,1
+Sociology,Media and Communications,1
+Sociology,Statistics,1
+Statistics,Anthropology,1
+Statistics,Economics,1
+Statistics,Gender,1
+Statistics,Geography,1
+Statistics,Government,1
+Statistics,Law,1
+Statistics,Media and Communications,1
+Statistics,Social Policy,1
+Statistics,Sociology,1
+International Development,NY Law School,1
+NY Law School,International Development,1
+Gender Institute,Media and Communications,1
+Media and Communications,Gender Institute,1

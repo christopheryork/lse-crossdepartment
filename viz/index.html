@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/queue-async/1.0.7/queue.min.js"></script>
+
+<style>
+.node {
+  font: 300 11px "Helvetica Neue", Helvetica, Arial, sans-serif;
+  stroke: black;
+  fill: none;
+}
+
+.link {
+  stroke-opacity: .4;
+  fill: none;
+  pointer-events: none;
+}
+
+.research {
+  stroke: #f16913;
+}
+
+.teaching {
+  stroke: #6baed6;
+}
+</style>
+
+<body>
+
+<script>
+  var diameter = 960
+  var radius = diameter / 2
+  var innerRadius = radius - 160
+
+  var bundle = d3.layout.bundle()
+
+  var svg = d3.select("body").append("svg")
+    .attr("width", diameter)
+    .attr("height", diameter)
+    .append("g")
+    .attr("transform", "translate(" + radius + "," + radius + ")rotate(-90)")
+
+  queue().defer(d3.csv, "6.1,6.3.csv")
+         .defer(d3.csv, "6.2.csv")
+         .defer(d3.csv, "6.4.csv")
+         .await( (err, depts, research, teaching) => {
+          if(err) throw err
+
+          // mark and combine the research and teaching links
+
+          research.forEach( (d) => d.type = 'research' )
+          teaching.forEach( (d) => d.type = 'teaching' )
+
+          var ordered_depts = depts.map( (d) => d.department )
+          ordered_depts.sort()
+
+          var r = d3.scale.ordinal()
+            .rangeBands( [0, 2 * Math.PI ] )
+            .domain(ordered_depts)
+
+          var line = d3.svg.line.radial()
+            .interpolate("bundle")
+            .tension(0.85)
+            .radius(innerRadius)
+            .angle( (d) => r(d) * 180 / Math.PI )
+
+          var node = svg.append("g")
+              .selectAll(".node")
+            .data(depts)
+              .enter().append("text")
+              .attr("class", "node")
+              .attr("transform", (d) => "rotate(" + (r(d.department) * 180 / Math.PI) + ")" +
+                                        "translate(" + innerRadius + ",0)" +
+                                        (r(d.department) < Math.PI ? "" : "rotate(180)"))
+              .style("text-anchor", (d) => r(d.department) < Math.PI ? "start" : "end")
+              .text( (d) => d.department + ' ' + d3.round( (r(d.department) * 180 / Math.PI), 2) )
+
+          var link = svg.append("g")
+              .selectAll(".link")
+            .data( ([]).concat(research).concat(teaching) )
+              .enter().append("path")
+              .attr("class", (d) => "link " + d.type)
+              .attr("d", (d) => line([ "Accounting", "Sociology", "Economics" ]))  //d.department1, /* d.department2 */ "Accounting" ]))
+         })
+
+</script>
