@@ -1,87 +1,197 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
-
-<script src="http://d3js.org/d3.v3.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/queue-async/1.0.7/queue.min.js"></script>
-
 <style>
-.node {
-  font: 300 11px "Helvetica Neue", Helvetica, Arial, sans-serif;
-  stroke: black;
-  fill: none;
+
+body {
+  font: 10px sans-serif;
 }
 
-.link {
-  stroke-opacity: .4;
-  fill: none;
-  pointer-events: none;
+.chord path {
+  fill-opacity: .67;
+  stroke: none;
 }
 
-.research {
-  stroke: #f16913;
-}
-
-.teaching {
-  stroke: #6baed6;
-}
 </style>
-
 <body>
-
+<script src="//d3js.org/d3.v3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/queue-async/1.0.7/queue.min.js"></script>
 <script>
-  var diameter = 960
-  var radius = diameter / 2
-  var innerRadius = radius - 160
 
-  var bundle = d3.layout.bundle()
+var totals = {};
+
+var add_dept = (dept, tally, links) => tally[dept] = (tally[dept] || 0.0) + links
+
+queue().defer(d3.csv, "data-6.1,6.3.csv")
+       .defer(d3.csv, "data-6.2.csv")
+       .defer(d3.csv, "data-6.4.csv")
+       .await( (err, depts, research, teaching) => {
+  if(err) { throw err }
+
+  // regularise data
+  depts.forEach( (d) => { d.faculty = +d.faculty; d.research_links = +d.research_links; d.teaching_links = +d.teaching_links })
+  research.forEach( (d) => d.links = +d.links )
+  teaching.forEach( (d) => d.links = +d.links )
+
+  // prepare list of nodes; should be a superset of depts list
+  research.forEach( (d) => { add_dept(d.department1, totals, d.links); add_dept(d.department2, totals, d.links); })
+  teaching.forEach( (d) => { add_dept(d.department1, totals, d.links); add_dept(d.department2, totals, d.links); })
+
+  // visualization proper
+
+  var width = 1250,
+      height = 450,
+      innerRadius = Math.min(width / 2.0, height) * .41,
+      outerRadius = innerRadius * 1.05,
+      chordRadius = innerRadius * 0.99,
+      labelRadius = innerRadius * 1.1;
+
+  var fill = d3.scale.category20c()
+    .domain(d3.keys(totals))
 
   var svg = d3.select("body").append("svg")
-    .attr("width", diameter)
-    .attr("height", diameter)
+      .attr("width", width)
+      .attr("height", height)
     .append("g")
-    .attr("transform", "translate(" + radius + "," + radius + ")rotate(-90)")
+      .attr("transform", "translate(" + width / 4.0 + "," + height / 2 + ")");
 
-  queue().defer(d3.csv, "6.1,6.3.csv")
-         .defer(d3.csv, "6.2.csv")
-         .defer(d3.csv, "6.4.csv")
-         .await( (err, depts, research, teaching) => {
-          if(err) throw err
+  function viz() {
 
-          // mark and combine the research and teaching links
+    var links
+    var nodes
+    var padding = 0.01
 
-          research.forEach( (d) => d.type = 'research' )
-          teaching.forEach( (d) => d.type = 'teaching' )
+    function chart(elem) {
 
-          var ordered_depts = depts.map( (d) => d.department )
-          ordered_depts.sort()
+      var total_nodes = d3.values(nodes).reduce( (a, b) => a + b, 0.0 )
+      var labels = d3.keys(nodes).sort(d3.ascending)
 
-          var r = d3.scale.ordinal()
-            .rangeBands( [0, 2 * Math.PI ] )
-            .domain(ordered_depts)
+      var k = (2 * Math.PI - padding * labels.length) / total_nodes
 
-          var line = d3.svg.line.radial()
-            .interpolate("bundle")
-            .tension(0.85)
-            .radius(innerRadius)
-            .angle( (d) => r(d) * 180 / Math.PI )
+      var angles = {}
+      var arcs = labels.map( (dept) => k * nodes[dept] )
+      labels.forEach( (dept,i) => {
+        var cum_sum = arcs.slice(0, i).reduce( (a,b) => a+b, 0.0)
+        angles[dept] = cum_sum + padding * i
+      })
 
-          var node = svg.append("g")
-              .selectAll(".node")
-            .data(depts)
-              .enter().append("text")
-              .attr("class", "node")
-              .attr("transform", (d) => "rotate(" + (r(d.department) * 180 / Math.PI) + ")" +
-                                        "translate(" + innerRadius + ",0)" +
-                                        (r(d.department) < Math.PI ? "" : "rotate(180)"))
-              .style("text-anchor", (d) => r(d.department) < Math.PI ? "start" : "end")
-              .text( (d) => d.department + ' ' + d3.round( (r(d.department) * 180 / Math.PI), 2) )
+      // outer circle
 
-          var link = svg.append("g")
-              .selectAll(".link")
-            .data( ([]).concat(research).concat(teaching) )
-              .enter().append("path")
-              .attr("class", (d) => "link " + d.type)
-              .attr("d", (d) => line([ "Accounting", "Sociology", "Economics" ]))  //d.department1, /* d.department2 */ "Accounting" ]))
-         })
+      var arc = d3.svg.arc()
+        .innerRadius(innerRadius)
+        .outerRadius(outerRadius)
+        .startAngle( (d) => angles[d] )
+        .endAngle( (d) => angles[d] + k * nodes[d])
+
+      var label_arc = d3.svg.arc()
+        .innerRadius(labelRadius)
+        .outerRadius(labelRadius)
+        .startAngle( (d) => angles[d] )
+        .endAngle( (d) => angles[d] + k * nodes[d])
+
+      var dept = elem.append("g")
+          .attr("class", "dept")
+        .selectAll("g")
+           .data(labels)
+         .enter()
+           .append("g")
+
+      dept.append("path")
+          .attr("fill", fill)
+          .attr("d", arc)
+
+      dept.append("text")
+          .attr("opacity", 0)
+          .attr("transform", (d) => "translate(" + label_arc.centroid(d) + ")")
+          .attr("text-anchor", (d) => angles[d] < Math.PI ? "start" : "end")
+          .text( (d) => d )
+
+      // chords
+
+      var chord = d3.svg.chord()
+        .radius(chordRadius)
+        .source( (d) => {
+          return { startAngle: angles[d.department1], endAngle: angles[d.department1] + 0.1 }
+        })
+        .target( (d) => {
+          return { startAngle: angles[d.department2], endAngle: angles[d.department2] + 0.1 }
+        })
+
+      elem.append("g")
+          .attr("class", "chord")
+        .selectAll("path")
+          .data(links)
+        .enter().append("path")
+          .attr("d", chord)
+          .style("fill", (d) => fill(d.department1))
+
+    }
+
+    chart.padding = function(value) {
+      if(!arguments.length) return padding
+      padding = value
+      return chart
+    }
+
+    chart.links = function(value) {
+      if(!arguments.length) return links
+      links = value
+      return chart
+    }
+
+    chart.nodes = function(value) {
+      if(!arguments.length) return nodes
+      nodes = value
+      return chart
+    }
+
+    return chart
+  }
+
+  // behaviors
+
+  function focus(chart, dept) {
+    chart.selectAll(".chord path")
+           .filter( (d) => !(dept === d.department1 || dept === d.department2) )
+         .transition()
+           .attr("opacity", 0.05)
+
+    var affiliated = d3.set()
+    chart.selectAll(".chord path")
+       .filter( (d) => dept === d.department1 || dept == d.department2)
+       .each( (d) => { affiliated.add(d.department1); affiliated.add(d.department2); } )
+
+    chart.selectAll(".dept text")
+      .filter( (d) => affiliated.has(d) || d === dept )
+      .transition()
+      .attr("opacity", 1.0)
+  }
+
+  function defocus() {
+    svg.selectAll(".chord path")
+      .transition()
+      .attr("opacity", 1.0)
+    svg.selectAll(".dept text")
+      .transition()
+      .attr("opacity", 0)
+  }
+
+  // generate chord diagrams
+
+  var research_chord = svg.append("g")
+    .call(viz()
+      .links(research)
+      .nodes(totals))
+
+  var teaching_chord = svg.append("g")
+    .attr("transform", "translate(" + width / 2.0 + ",0)")
+    .call(viz()
+      .links(teaching)
+      .nodes(totals))
+
+  svg.selectAll(".dept g")
+    .on("mouseover", (g) => { focus(research_chord, g); focus(teaching_chord, g); })
+    .on("mouseout", defocus)
+
+})
 
 </script>
