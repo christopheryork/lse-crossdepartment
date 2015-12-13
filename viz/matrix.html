@@ -7,6 +7,17 @@ body {
   background: black;
 }
 
+.toggle {
+  position: absolute;
+  top: 120px;
+  left: 560px;
+  color: gray;
+}
+
+svg {
+  margin: 20px;
+}
+
 text {
   stroke: none;
 }
@@ -23,6 +34,7 @@ text {
 <body>
 <script src="js/d3.min.js"></script>
 <script src="js/queue.min.js"></script>
+<label class="toggle"><input type="checkbox" id="cbox" value="second_checkbox" checked>Details</label>
 <script>
 
 function empty_matrix(n) {
@@ -80,7 +92,10 @@ queue().defer(d3.csv, "data-6.2.csv")
       cell_packing = 3,
       cell_padding = 1,
       stroke_width = 1.0,
-      trim_value = 22;
+      trim_value = 22,
+      research_color = "#f16913",
+      neutral_color = "gray",
+      teaching_color = "#08519c";
 
   var svg = d3.select("body").append("svg")
         .attr("width", width)
@@ -90,6 +105,14 @@ queue().defer(d3.csv, "data-6.2.csv")
   var scale = d3.scale.ordinal()
     .domain(d3.range(n))
     .rangeRoundBands([0, width - padding], 0.1)
+
+  var colorscale = d3.scale.linear()
+    .domain([-2, 0, 9])
+    .range([teaching_color, neutral_color, research_color])
+
+  var sizescale = d3.scale.linear()
+    .domain([0, 10])
+    .range([3, scale.rangeBand()])
 
   var size = (i,j) => research_matrix[i][j] + teaching_matrix[i][j]
   var bal = (i,j) => research_matrix[i][j] - teaching_matrix[i][j]
@@ -117,11 +140,6 @@ queue().defer(d3.csv, "data-6.2.csv")
   g.append("rect")
     .attr("rx", 1)
     .attr("ry", 1)
-    .attr("width", scale.rangeBand())
-    .attr("height", scale.rangeBand())
-    .attr("stroke", "grey")
-    .attr("fill", "transparent")
-    .attr("opacity", "0.2")
 
   // dots for linkages
 
@@ -138,7 +156,7 @@ queue().defer(d3.csv, "data-6.2.csv")
     .attr("fill", (d, i) => {
       var s = size(d.i, d.j)
       var b = bal(d.i, d.j)
-      return (i < s - Math.abs(b)) ? "gray" : (b > 0) ? "#f16913" : "#08519c"
+      return (i < s - Math.abs(b)) ? neutral_color : (b > 0) ? research_color : teaching_color
     })
 
   // Rules
@@ -168,6 +186,47 @@ queue().defer(d3.csv, "data-6.2.csv")
     .attr("dominant-baseline", "middle")
     .text( (d) => trim(d, 20) )
     .attr("fill", "white")
+
+  // behavior
+
+  function update() {
+    var details = d3.select(".toggle input").property("checked")
+
+    if(details) {
+      svg.selectAll(".matrix circle")
+        .transition()
+          .attr("visibility", "visible")
+      svg.selectAll(".matrix rect")
+          .attr("stroke", "grey")
+/*          .attr("x", 0)
+          .attr("y", 0) */
+          .attr("width", scale.rangeBand())
+          .attr("height", scale.rangeBand())
+          .attr("fill", "transparent")
+          .attr("opacity", "0.2")
+
+    } else {
+      svg.selectAll(".matrix circle")
+        .transition()
+        .attr("visibility", "hidden")
+      svg.selectAll(".matrix rect")
+          .attr("stroke", "none")
+/*          .attr("x", (d) => sizescale( size(d.i,d.j) ) / 2.0)
+          .attr("y", (d) => sizescale( size(d.i,d.j) ) / 2.0) */
+          .attr("width", (d) => sizescale( size(d.i,d.j) ))
+          .attr("height", (d) => sizescale( size(d.i,d.j) ))
+          .attr("fill", (d) => {
+            var b = bal(d.i, d.j)
+            return colorscale(b)
+          })
+          .attr("opacity", (d) => size(d.i,d.j) > 0 ? "1.0" : "0.2")
+    }
+  }
+
+  update()
+
+  d3.select(".toggle")
+    .on("change", update)
 })
 
 </script>
