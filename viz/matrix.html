@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+body {
+  font: 10px sans-serif;
+}
+
+text {
+  stroke: none;
+}
+
+</style>
+<body>
+<script src="js/d3.min.js"></script>
+<script src="js/queue.min.js"></script>
+<script>
+
+queue().defer(d3.csv, "data-6.1,6.3.csv")
+       .defer(d3.csv, "data-6.2.csv")
+       .defer(d3.csv, "data-6.4.csv")
+       .await( (err, depts, research, teaching) => {
+  if(err) { throw err }
+
+  // convert data from JSON to javascript types
+  depts.forEach( (d) => { d.faculty = +d.faculty; d.research_links = +d.research_links; d.teaching_links = +d.teaching_links })
+  research.forEach( (d) => d.links = +d.links )
+  teaching.forEach( (d) => d.links = +d.links )
+
+  // prepare list of nodes; should be a superset of depts list
+  var rd1 = research.map( (d) => d.department1 )
+  var rd2 = research.map( (d) => d.department2 )
+  var td1 = teaching.map( (d) => d.department1 )
+  var td2 = teaching.map( (d) => d.department2 )
+  var dept_names = d3.set([].concat(rd1).concat(rd2).concat(td1).concat(td2)).values()
+  dept_names.sort()
+
+  // prepare the matrices
+
+  var pairs = []
+  dept_names.forEach( (d1) => {
+    dept_names.forEach( (d2) => {
+      pairs.push( [d1, d2] )
+    })
+  })
+
+  var research_matrix = dept_names.map( (d) => dept_names.map( (d) => 0.0 ));
+  var teaching_matrix = dept_names.map( (d) => dept_names.map( (d) => 0.0 ));
+  var size_matrix = dept_names.map( (d) => dept_names.map( (d) => 0.0 ));
+  var balance_matrix = dept_names.map( (d) => dept_names.map( (d) => 0.0 ));
+
+  var max_size = min_balance = max_balance = 0.0
+
+  research.forEach( (d) => {
+    var d1 = dept_names.indexOf(d.department1)
+    var d2 = dept_names.indexOf(d.department2)
+    research_matrix[d1][d2] = research_matrix[d2][d1] = d.links
+    balance_matrix[d1][d2] = balance_matrix[d2][d1] = d.links
+    size_matrix[d1][d2] = size_matrix[d2][d1] = d.links
+  })
+
+  teaching.forEach( (d) => {
+    var d1 = dept_names.indexOf(d.department1)
+    var d2 = dept_names.indexOf(d.department2)
+    teaching_matrix[d1][d2] = teaching_matrix[d2][d1] = d.links
+    balance_matrix[d1][d2] = balance_matrix[d2][d1] -= d.links
+    size_matrix[d1][d2] = size_matrix[d2][d1] += d.links
+
+    max_size = Math.max( max_size, size_matrix[d1][d2] )
+    min_balance = Math.min( min_balance, balance_matrix[d1][d2])
+    max_balance = Math.max( max_balance, balance_matrix[d1][d2])
+  })
+
+  function deref(d, matrix) {
+    var i = dept_names.indexOf(d[0])
+    var j = dept_names.indexOf(d[1])
+    return matrix[i][j]
+  }
+
+  function trim(d, n) {
+    if(d.length > n) {
+      return d.slice(0,n-3) + "..."
+    }
+    return d
+  }
+
+  // visualization proper
+
+  var width = 650,
+      height = 650,
+      padding = 150;
+
+  var svg = d3.select("body").append("svg")
+        .attr("width", width)
+        .attr("height", height)
+      .append("g")
+
+  var dept_scale = d3.scale.ordinal()
+    .domain(dept_names)
+    .rangeRoundBands([0, height - padding], 0.15)
+
+  var size_scale = d3.scale.pow().exponent(0.5)
+    .range([5, dept_scale.rangeBand()])
+    .domain([0,max_size])
+
+  var balance_scale_r = d3.scale.linear()
+    .range(["grey", "red"])
+    .domain([0,max_balance])
+  var balance_scale_t = d3.scale.linear()
+    .range(["blue", "grey"])
+    .domain([min_balance, 0])
+
+  var matrix = svg.append("g")
+      .attr("class", "matrix")
+
+  var g = matrix
+    .selectAll("g")
+      .data(pairs)
+    .enter()
+      .append("g")
+      .attr("transform", (d) => "translate(" + dept_scale(d[0]) + "," + (padding + dept_scale(d[1])) + ")")
+
+  g.append("rect")
+    .attr("width", (d) => size_scale(deref(d, size_matrix)))
+    .attr("height", (d) => size_scale(deref(d, size_matrix)))
+    .attr("x", (d) => - size_scale(deref(d, size_matrix)) / 2.0)
+    .attr("y", (d) => - size_scale(deref(d, size_matrix)) / 2.0)
+    .attr("rx", 2)
+    .attr("ry", 2)
+    .attr("fill", (d) => {
+      if( deref(d,size_matrix) === 0) { return 'lightgrey'}
+      var bs = deref(d, balance_matrix)
+      return (bs < 0) ? balance_scale_t(bs) : balance_scale_r(bs)
+    })
+    .attr("opacity", (d) => (d[0] < d[1] || deref(d,size_matrix) === 0) ? "0.4" : "1.0")
+    .append("title")
+      .text((d) => d.join(', ') +
+                   "\nResearch: " + deref(d, research_matrix) +
+                   ", Teaching: " + deref(d, teaching_matrix) +
+                   "\nTotal: " + deref(d, size_matrix) +
+                   "\nBalance: " + deref(d, balance_matrix))
+
+  svg.append("g")
+    .attr("class", "x_labels")
+    .attr("transform", "translate(0," + padding + ")")
+   .selectAll("text")
+    .data(dept_names)
+   .enter().append("g")
+    .attr("transform", (d) => "translate(" + dept_scale(d) + ",0)rotate(-90)")
+   .append("text")
+    .attr("class", (d,i) => "dept" + i)
+    .attr("dx", 5)
+    .attr("dominant-baseline", "middle")
+    .text( (d) => trim(d, 20) )
+    .attr("fill", "gray")
+
+  svg.append("g")
+    .attr("class", "y_labels")
+    .attr("transform", "translate(" + (width - padding) + ",0)")
+   .selectAll("text")
+    .data(dept_names)
+   .enter().append("text")
+    .attr("class", (d,i) => "dept" + i)
+    .attr("y", (d) => padding + dept_scale(d))
+    .attr("dominant-baseline", "middle")
+//    .attr("dy", dept_scale.rangeBand() / 2.0)
+    .text( (d) => trim(d, 20) )
+    .attr("fill", "gray")
+
+  g.on("mouseover", (d) => {
+    var i = dept_names.indexOf(d[0])
+    var j = dept_names.indexOf(d[1])
+    svg.selectAll(".x_labels text.dept" + i).attr("fill", "blue")
+    svg.selectAll(".y_labels text.dept" + j).attr("fill", "blue")
+  })
+
+  g.on("mouseout", () => {
+    svg.selectAll("text").attr("fill", "grey")
+  })
+
+})
+
+</script>
