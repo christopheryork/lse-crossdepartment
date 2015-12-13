@@ -4,10 +4,19 @@
 
 body {
   font: 10px sans-serif;
+  background: black;
 }
 
 text {
   stroke: none;
+}
+
+.x_labels {
+  opacity: 0.7;
+}
+
+.y_labels {
+  opacity: 0.7;
 }
 
 </style>
@@ -65,29 +74,22 @@ queue().defer(d3.csv, "data-6.2.csv")
 
   // visualization proper
 
-  var width = 1000,
-      height = 600,
-      padding = 150,
-      cell_padding = 3,
-      trim_value = 25;
+  var width = 650,
+      height = 650,
+      padding = 120,
+      cell_packing = 3,
+      cell_padding = 1,
+      stroke_width = 1.0,
+      trim_value = 22;
 
   var svg = d3.select("body").append("svg")
         .attr("width", width)
         .attr("height", height)
       .append("g")
 
-  svg.append("rect")
-    .attr("width", width)
-    .attr("height", height)
-    .attr("fill", "black")
-
-  var x_scale = d3.scale.ordinal()
+  var scale = d3.scale.ordinal()
     .domain(d3.range(n))
     .rangeRoundBands([0, width - padding], 0.1)
-
-  var y_scale = d3.scale.ordinal()
-    .domain(d3.range(n))
-    .rangeRoundBands([0, height - padding], 0.1)
 
   var size = (i,j) => research_matrix[i][j] + teaching_matrix[i][j]
   var bal = (i,j) => research_matrix[i][j] - teaching_matrix[i][j]
@@ -104,7 +106,7 @@ queue().defer(d3.csv, "data-6.2.csv")
       .data(points)
     .enter()
       .append("g")
-        .attr("transform", (d) => "translate(" + x_scale(d.i) + "," + (padding + y_scale(d.j)) + ")" )
+        .attr("transform", (d) => "translate(" + scale(d.i) + "," + (padding + scale(d.j)) + ")" )
         .attr("opacity", (d) => (d.i > d.j) ? "1.0" : "0.5" )
 
   g.append("title")
@@ -112,16 +114,27 @@ queue().defer(d3.csv, "data-6.2.csv")
                "\nResearch: " + research_matrix[d.i][d.j] +
                ", Teaching: " + teaching_matrix[d.i][d.j])
 
+  g.append("rect")
+    .attr("rx", 1)
+    .attr("ry", 1)
+    .attr("width", scale.rangeBand())
+    .attr("height", scale.rangeBand())
+    .attr("stroke", "grey")
+    .attr("fill", "transparent")
+    .attr("opacity", "0.2")
+
   // dots for linkages
 
-  var rect = g.selectAll("rect")
+  var circle = g.selectAll("circle")
     .data( (d) => d3.range(size(d.i, d.j)).map( (k) => d ) )
 
-  rect.enter()
-    .append("rect")
-    .attr("width", 2)
-    .attr("height", y_scale.rangeBand() - cell_padding)
-    .attr("x", (d,i) => i * ((x_scale.rangeBand() - cell_padding) / 10.0 + 1.0))
+  var radius = (scale.rangeBand() / cell_packing - cell_padding) / 2.0
+
+  circle.enter()
+    .append("circle")
+    .attr("r", radius)
+    .attr("cx", (d,i) => (stroke_width / 2.0) + radius + i % cell_packing * (radius * 2 + cell_padding))
+    .attr("cy", (d,i) => (stroke_width / 2.0) + radius + Math.floor(i / cell_packing) * (radius * 2 + cell_padding))
     .attr("fill", (d, i) => {
       var s = size(d.i, d.j)
       var b = bal(d.i, d.j)
@@ -136,7 +149,7 @@ queue().defer(d3.csv, "data-6.2.csv")
    .selectAll("text")
     .data(dept_names)
    .enter().append("g")
-    .attr("transform", (d, i) => "translate(" + (x_scale(i) + 5) + ",-5)rotate(-90)")
+    .attr("transform", (d, i) => "translate(" + (scale(i) + 5) + ",-5)rotate(-90)")
    .append("text")
     .attr("class", (d, i) => "dept" + i)
     .attr("dominant-baseline", "middle")
@@ -150,8 +163,8 @@ queue().defer(d3.csv, "data-6.2.csv")
     .data(dept_names)
    .enter().append("text")
     .attr("class", (d,i) => "dept" + i)
-    .attr("y", (d,i) => padding + y_scale(i))
-    .attr("dy",  y_scale.rangeBand() / 2.0)
+    .attr("y", (d,i) => padding + scale(i))
+    .attr("dy",  scale.rangeBand() / 2.0)
     .attr("dominant-baseline", "middle")
     .text( (d) => trim(d, 20) )
     .attr("fill", "white")
