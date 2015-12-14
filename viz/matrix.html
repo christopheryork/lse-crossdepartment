@@ -4,7 +4,7 @@
 
 body {
   font: 10px sans-serif;
-  background: black;
+  background: white;
 }
 
 .toggle {
@@ -172,7 +172,7 @@ queue().defer(d3.csv, "data-6.2.csv")
     .attr("class", (d, i) => "dept" + i)
     .attr("dominant-baseline", "middle")
     .text( (d) => trim(d, trim_value) )
-    .attr("fill", "white")
+    .attr("fill", "black")
 
   svg.append("g")
     .attr("class", "y_labels")
@@ -185,7 +185,7 @@ queue().defer(d3.csv, "data-6.2.csv")
     .attr("dy",  scale.rangeBand() / 2.0)
     .attr("dominant-baseline", "middle")
     .text( (d) => trim(d, 20) )
-    .attr("fill", "white")
+    .attr("fill", "black")
 
   // behavior
 
