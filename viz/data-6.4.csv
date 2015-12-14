@@ -1,0 +1,89 @@
+department1,department2,links
+Accounting,Economics,1
+Accounting,Finance,3
+Accounting,Finance,1
+Accounting,Geography and Environment,1
+Accounting,Law,1
+Anthropology,Economics,1
+Anthropology,Gender,1
+Anthropology,Geography,1
+Anthropology,Government,1
+Anthropology,International Development,2
+Anthropology,Law,2
+Anthropology,Law,1
+Anthropology,Media and Communications,1
+Anthropology,Social Policy,1
+Anthropology,Sociology,1
+Anthropology,Statistics,1
+EI,Government,1
+EI,International Development,1
+EI,International Relations,1
+EI,Sociology,1
+Economic History,Economics,2
+Economic History,International Development,1
+Economics,Finance,1
+Economics,Gender,1
+Economics,Geography,1
+Economics,Geography and Environment,2
+Economics,Geography and Environment,1
+Economics,Government,2
+Economics,Government,1
+Economics,Law,1
+Economics,Logic,2
+Economics,Management,1
+Economics,Mathematics,2
+Economics,Media and Communications,1
+Economics,Philosophy,2
+Economics,Philosophy,1
+Economics,Scientific Method,2
+Economics,Social Policy,1
+Economics,Sociology,1
+Economics,Statistics,1
+Finance,Geography and Environment,1
+Finance,Mathematics,1
+Finance,Statistics,1
+Gender,Geography,1
+Gender,Government,1
+Gender,Law,1
+Gender,Media and Communications,1
+Gender,Social Policy,1
+Gender,Sociology,1
+Gender,Statistics,1
+Gender Institute,Media and Communications,1
+Geography,Government,1
+Geography,Law,1
+Geography,Media and Communications,1
+Geography,Social Policy,1
+Geography,Sociology,1
+Geography,Statistics,1
+Geography and Environment,International Development,1
+Government,International Development,1
+Government,International History,2
+Government,International Relations,2
+Government,International Relations,1
+Government,Law,1
+Government,Media and Communications,1
+Government,Philosophy,1
+Government,Social Policy,1
+Government,Sociology,1
+Government,Statistics,1
+International Development,International Relations,1
+International Development,NY Law School,1
+International History,International Relations,3
+International Relations,Management,1
+Law,Media and Communications,1
+Law,Social Policy,1
+Law,Sociology,1
+Law,Statistics,1
+Logic,Philosophy,2
+Logic,Scientific Method,2
+London School of Hygiene and Tropical Medicine,Social Policy,1
+Management,Social Policy,1
+Mathematics,Statistics,1
+Media and Communications,Social Policy,1
+Media and Communications,Sociology,1
+Media and Communications,Statistics,1
+Philosophy,Scientific Method,2
+Social Policy,Sociology,1
+Social Policy,Statistics,1
+Sociology,Statistics,1
