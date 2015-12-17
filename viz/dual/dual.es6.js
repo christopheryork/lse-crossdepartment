@@ -1,29 +1,12 @@
-<!DOCTYPE html>
-<meta charset="utf-8">
-<style>
-
-body {
-  font: 10px sans-serif;
-}
-
-.chord path {
-  fill-opacity: .67;
-  stroke: none;
-}
-
-</style>
-<body>
-<script src="//d3js.org/d3.v3.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/queue-async/1.0.7/queue.min.js"></script>
-<script>
+// This file must be pre-processed for Safari, as it uses arrow functions.
 
 var totals = {};
 
 var add_dept = (dept, tally, links) => tally[dept] = (tally[dept] || 0.0) + links
 
-queue().defer(d3.csv, "data-6.1,6.3.csv")
-       .defer(d3.csv, "data-6.2.csv")
-       .defer(d3.csv, "data-6.4.csv")
+queue().defer(d3.csv, "../data-6.1,6.3.csv")
+       .defer(d3.csv, "../data-6.2.csv")
+       .defer(d3.csv, "../data-6.4.csv")
        .await( (err, depts, research, teaching) => {
   if(err) { throw err }
 
@@ -193,5 +176,3 @@ queue().defer(d3.csv, "data-6.1,6.3.csv")
     .on("mouseout", defocus)
 
 })
-
-</script>

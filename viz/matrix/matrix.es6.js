@@ -1,41 +1,4 @@
-<!DOCTYPE html>
-<meta charset="utf-8">
-<style>
-
-body {
-  font: 10px sans-serif;
-  background: white;
-}
-
-.toggle {
-  position: absolute;
-  top: 120px;
-  left: 560px;
-  color: gray;
-}
-
-svg {
-  margin: 20px;
-}
-
-text {
-  stroke: none;
-}
-
-.x_labels {
-  opacity: 0.7;
-}
-
-.y_labels {
-  opacity: 0.7;
-}
-
-</style>
-<body>
-<script src="js/d3.min.js"></script>
-<script src="js/queue.min.js"></script>
-<label class="toggle"><input type="checkbox" id="cbox" value="second_checkbox" checked>Details</label>
-<script>
+// This file must be pre-processed for Safari, as it uses arrow functions.
 
 function empty_matrix(n) {
   var m = Array(n)
@@ -52,8 +15,8 @@ function trim(d, n) {
   return (d.length > n) ? (d.slice(0,n-3)+"...") : d
 }
 
-queue().defer(d3.csv, "data-6.2.csv")
-       .defer(d3.csv, "data-6.4.csv")
+queue().defer(d3.csv, "../data-6.2.csv")
+       .defer(d3.csv, "../data-6.4.csv")
        .await( (err, research, teaching) => {
   if(err) { throw err }
 
@@ -228,5 +191,3 @@ queue().defer(d3.csv, "data-6.2.csv")
   d3.select(".toggle")
     .on("change", update)
 })
-
-</script>

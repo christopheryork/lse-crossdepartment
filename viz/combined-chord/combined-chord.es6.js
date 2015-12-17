@@ -1,25 +1,8 @@
-<!DOCTYPE html>
-<meta charset="utf-8">
-<style>
+// This file must be pre-processed for Safari, as it uses arrow functions.
 
-body {
-  font: 10px sans-serif;
-}
-
-.chord path {
-  fill-opacity: .67;
-  stroke: none;
-}
-
-</style>
-<body>
-<script src="js/d3.min.js"></script>
-<script src="js/queue.min.js"></script>
-<script>
-
-queue().defer(d3.csv, "data-6.1,6.3.csv")
-       .defer(d3.csv, "data-6.2.csv")
-       .defer(d3.csv, "data-6.4.csv")
+queue().defer(d3.csv, "../data-6.1,6.3.csv")
+       .defer(d3.csv, "../data-6.2.csv")
+       .defer(d3.csv, "../data-6.4.csv")
        .await( (err, depts, research, teaching) => {
   if(err) { throw err }
 
@@ -146,5 +129,3 @@ queue().defer(d3.csv, "data-6.1,6.3.csv")
       .attr("opacity", 0.2)
   })
 })
-
-</script>

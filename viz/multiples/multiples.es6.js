@@ -1,32 +1,4 @@
-<!DOCTYPE html>
-<meta charset="utf-8">
-<style>
-
-body {
-  font: 9px sans-serif;
-}
-
-svg {
-  margin: 20px;
-}
-
-text {
-  stroke: none;
-}
-
-.x_labels {
-  opacity: 0.7;
-}
-
-.y_labels {
-  opacity: 0.7;
-}
-
-</style>
-<body>
-<script src="js/d3.min.js"></script>
-<script src="js/queue.min.js"></script>
-<script>
+// This file must be pre-processed for Safari, as it uses arrow functions.
 
 function empty_matrix(n) {
   var m = Array(n)
@@ -43,9 +15,9 @@ function trim(d, n) {
   return (d.length > n) ? (d.slice(0,n-3)+"...") : d
 }
 
-queue().defer(d3.csv, "data-6.1,6.3.csv")
-       .defer(d3.csv, "data-6.2.csv")
-       .defer(d3.csv, "data-6.4.csv")
+queue().defer(d3.csv, "../data-6.1,6.3.csv")
+       .defer(d3.csv, "../data-6.2.csv")
+       .defer(d3.csv, "../data-6.4.csv")
        .await( (err, depts, research, teaching) => {
   if(err) { throw err }
 
@@ -61,6 +33,8 @@ queue().defer(d3.csv, "data-6.1,6.3.csv")
   var dept_names = d3.set([].concat(rd1).concat(rd2).concat(td1).concat(td2)).values()
   dept_names.sort()
   var n = dept_names.length
+
+  var official = depts.map( (d) => d.department )
 
   // prepare the matrices
 
@@ -89,6 +63,12 @@ queue().defer(d3.csv, "data-6.1,6.3.csv")
 
   var research_totals = research_matrix.map( (d) => d.reduce( (x,y) => x + y, 0.0 ))
   var teaching_totals = teaching_matrix.map( (d) => d.reduce( (x,y) => x + y, 0.0 ))
+
+  console.log("research")
+  d3.zip(dept_names, research_totals).forEach( (d) => console.log(d[0] + "\t" + d[1]) )
+  console.log("teaching")
+  d3.zip(dept_names, teaching_totals).forEach( (d) => console.log(d[0] + "\t" + d[1]) )
+
 
   var m = ([]).concat(research_totals).concat(teaching_totals).reduce( (x,y) => x + y, 0.0)
   var k = 2 * Math.PI / m
@@ -162,7 +142,5 @@ queue().defer(d3.csv, "data-6.1,6.3.csv")
     .enter()
       .append("path")
         .attr("class", "link")
-        .each( (d,i) => console.log(d) )
+//        .each( (d,i) => console.log(d) )
 })
-
-</script>
