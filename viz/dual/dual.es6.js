@@ -42,6 +42,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     var links
     var nodes
     var padding = 0.01
+    var chord_width = 0.05
 
     function chart(elem) {
 
@@ -93,10 +94,14 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       var chord = d3.svg.chord()
         .radius(chordRadius)
         .source( (d) => {
-          return { startAngle: angles[d.department1], endAngle: angles[d.department1] + 0.1 }
+          var center = (angles[d.department1] * 2 + k * nodes[d.department1]) / 2.0
+          return { startAngle: Math.max(center - chord_width, angles[d.department1]),
+                   endAngle: Math.min(center + chord_width, angles[d.department1] + k * nodes[d.department1]) }
         })
         .target( (d) => {
-          return { startAngle: angles[d.department2], endAngle: angles[d.department2] + 0.1 }
+          var center = (angles[d.department2] * 2 + k * nodes[d.department2]) / 2.0
+          return { startAngle: Math.max(center - chord_width, angles[d.department2]),
+                   endAngle: Math.min(center + chord_width, angles[d.department2] + k * nodes[d.department2]) }
         })
 
       elem.append("g")

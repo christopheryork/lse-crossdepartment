@@ -10,6 +10,7 @@ TODO
 [x] Splay chords within a department arc
 
 [ ] Small multiples
-[ ]   on small multiples - make sizes of arcs proportional to
 
-[ ] Matrix arrangement
+[x] Matrix arrangement
+
+[ ] Animate between matrix and chord
