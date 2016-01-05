@@ -52,9 +52,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   // prepare layout
 
-  var radius = 30,
+  var radius = 50,
       padding = 10,
+      chord_width = 0.05,
       thickness = 5,
+      chord_padding = 1,
       trim_value = 15,
       research_color = "#f16913",
       neutral_color = "gray",
@@ -63,12 +65,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   var research_totals = research_matrix.map( (d) => d.reduce( (x,y) => x + y, 0.0 ))
   var teaching_totals = teaching_matrix.map( (d) => d.reduce( (x,y) => x + y, 0.0 ))
-
-  console.log("research")
-  d3.zip(dept_names, research_totals).forEach( (d) => console.log(d[0] + "\t" + d[1]) )
-  console.log("teaching")
-  d3.zip(dept_names, teaching_totals).forEach( (d) => console.log(d[0] + "\t" + d[1]) )
-
 
   var m = ([]).concat(research_totals).concat(teaching_totals).reduce( (x,y) => x + y, 0.0)
   var k = 2 * Math.PI / m
@@ -79,7 +75,32 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     return (r + t) * k
   }
 
+  function centroid(i) {
+    var startAngle = angle(i)
+    var endAngle = angle(i+1)
+    var center = (startAngle + endAngle) / 2.0
+    return { startAngle: center - chord_width,
+             endAngle: center + chord_width }
+  }
+
   // visualization proper
+
+  var arc = d3.svg.arc()
+    .innerRadius(radius - thickness)
+    .outerRadius(radius)
+    .startAngle( (d,i) => angle(i))
+    .endAngle( (d,i) => angle(i+1))
+
+  var chord = d3.svg.chord()
+    .radius(radius - thickness - chord_padding)
+    .source( (d) => {
+      var i = dept_names.indexOf(d.department1)
+      return centroid(i)
+    })
+    .target( (d) => {
+      var i = dept_names.indexOf(d.department2)
+      return centroid(i)
+    })
 
   var fill = d3.scale.category20c()
     .domain(d3.range(n))
@@ -113,21 +134,15 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     .attr("dx", -5)
     .text( (d) => trim(d, trim_value) )
 
-  var chord = pair
-    .selectAll(".chord")
-      .data(dept_names)
+  var radial = pair
+    .selectAll(".radial")
+      .data( (mode) => dept_names.map( (d) => { return { mode: mode, dept: d }}))
     .enter()
       .append("g")
-        .attr("class", (d) => "chord " + d)
+        .attr("class", (d) => "radial " + d.dept)
         .attr("transform", (d,i) => "translate(" + (radius + ((radius * 2.0) + padding) * i) + ",0)" )
 
-  var arc = d3.svg.arc()
-    .innerRadius(radius - thickness)
-    .outerRadius(radius)
-    .startAngle( (d,i) => angle(i))
-    .endAngle( (d,i) => angle(i+1))
-
-  chord.append("g")
+  radial.append("g")
     .selectAll(".arc")
       .data(dept_names)
     .enter()
@@ -136,11 +151,22 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         .attr("d", arc)
         .attr("fill", (d,i) => fill(i))
 
-  var link = chord.append("g")
-    .selectAll(".link")
-      .data((d,i) => { i = dept_names.indexOf(d); return research_matrix[i] || []; })
+  radial.append("g")
+    .selectAll(".chord")
+      .data((d) => {
+        var i = dept_names.indexOf(d.dept)
+        var links = (d.mode === 'teaching' ? teaching_matrix[i] : research_matrix[i]) || []
+        var chords = []
+        links.forEach( (l,i) => {
+          if(l > 0) {
+            chords.push( {department1: d.dept, department2: dept_names[i], links: l} )
+          }
+        })
+        return chords
+      })
     .enter()
       .append("path")
-        .attr("class", "link")
-//        .each( (d,i) => console.log(d) )
+        .attr("class", "chord")
+        .attr("d", chord)
+        .attr("fill", (d) => fill( dept_names.indexOf(d.department2) ) )
 })

@@ -67,9 +67,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   // prepare layout
 
-  var radius = 30,
+  var radius = 50,
       padding = 10,
+      chord_width = 0.05,
       thickness = 5,
+      chord_padding = 1,
       trim_value = 15,
       research_color = "#f16913",
       neutral_color = "gray",
@@ -87,15 +89,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     }, 0.0);
   });
 
-  console.log("research");
-  d3.zip(dept_names, research_totals).forEach(function (d) {
-    return console.log(d[0] + "\t" + d[1]);
-  });
-  console.log("teaching");
-  d3.zip(dept_names, teaching_totals).forEach(function (d) {
-    return console.log(d[0] + "\t" + d[1]);
-  });
-
   var m = [].concat(research_totals).concat(teaching_totals).reduce(function (x, y) {
     return x + y;
   }, 0.0);
@@ -111,7 +104,29 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     return (r + t) * k;
   }
 
+  function centroid(i) {
+    var startAngle = angle(i);
+    var endAngle = angle(i + 1);
+    var center = (startAngle + endAngle) / 2.0;
+    return { startAngle: center - chord_width,
+      endAngle: center + chord_width };
+  }
+
   // visualization proper
+
+  var arc = d3.svg.arc().innerRadius(radius - thickness).outerRadius(radius).startAngle(function (d, i) {
+    return angle(i);
+  }).endAngle(function (d, i) {
+    return angle(i + 1);
+  });
+
+  var chord = d3.svg.chord().radius(radius - thickness - chord_padding).source(function (d) {
+    var i = dept_names.indexOf(d.department1);
+    return centroid(i);
+  }).target(function (d) {
+    var i = dept_names.indexOf(d.department2);
+    return centroid(i);
+  });
 
   var fill = d3.scale.category20c().domain(d3.range(n));
 
@@ -133,24 +148,31 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     return trim(d, trim_value);
   });
 
-  var chord = pair.selectAll(".chord").data(dept_names).enter().append("g").attr("class", function (d) {
-    return "chord " + d;
+  var radial = pair.selectAll(".radial").data(function (mode) {
+    return dept_names.map(function (d) {
+      return { mode: mode, dept: d };
+    });
+  }).enter().append("g").attr("class", function (d) {
+    return "radial " + d.dept;
   }).attr("transform", function (d, i) {
     return "translate(" + (radius + (radius * 2.0 + padding) * i) + ",0)";
   });
 
-  var arc = d3.svg.arc().innerRadius(radius - thickness).outerRadius(radius).startAngle(function (d, i) {
-    return angle(i);
-  }).endAngle(function (d, i) {
-    return angle(i + 1);
-  });
-
-  chord.append("g").selectAll(".arc").data(dept_names).enter().append("path").attr("class", "arc").attr("d", arc).attr("fill", function (d, i) {
+  radial.append("g").selectAll(".arc").data(dept_names).enter().append("path").attr("class", "arc").attr("d", arc).attr("fill", function (d, i) {
     return fill(i);
   });
 
-  var link = chord.append("g").selectAll(".link").data(function (d, i) {
-    i = dept_names.indexOf(d);return research_matrix[i] || [];
-  }).enter().append("path").attr("class", "link");
-  //        .each( (d,i) => console.log(d) )
+  radial.append("g").selectAll(".chord").data(function (d) {
+    var i = dept_names.indexOf(d.dept);
+    var links = (d.mode === 'teaching' ? teaching_matrix[i] : research_matrix[i]) || [];
+    var chords = [];
+    links.forEach(function (l, i) {
+      if (l > 0) {
+        chords.push({ department1: d.dept, department2: dept_names[i], links: l });
+      }
+    });
+    return chords;
+  }).enter().append("path").attr("class", "chord").attr("d", chord).attr("fill", function (d) {
+    return fill(dept_names.indexOf(d.department2));
+  });
 });
