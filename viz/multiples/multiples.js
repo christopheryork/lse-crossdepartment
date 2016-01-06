@@ -67,12 +67,16 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   // prepare layout
 
-  var radius = 50,
-      padding = 10,
+  var rows = 6,
+      radius = 50,
+      r_padding = 0.3,
+      h_padding = 35,
+      v_padding = 10,
       chord_width = 0.05,
       thickness = 5,
+      focus_thickness = 3,
       chord_padding = 1,
-      trim_value = 15,
+      trim_value = 20,
       research_color = "#f16913",
       neutral_color = "gray",
       teaching_color = "#08519c",
@@ -114,7 +118,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   // visualization proper
 
-  var arc = d3.svg.arc().innerRadius(radius - thickness).outerRadius(radius).startAngle(function (d, i) {
+  var arc = d3.svg.arc().startAngle(function (d, i) {
     return angle(i);
   }).endAngle(function (d, i) {
     return angle(i + 1);
@@ -130,35 +134,49 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   var fill = d3.scale.category20c().domain(d3.range(n));
 
-  var svg = d3.select("body").append("svg").attr("width", (radius * 2.0 + padding) * dept_names.length + border.left + border.right).attr("height", (radius * 2.0 + padding) * 2 + border.top + border.bottom).append("g").attr("transform", "translate(" + border.left + "," + border.top + ")");
+  var offset = function offset(i) {
+    return [radius + (radius * 2.0 + h_padding) * (i % rows), radius + (radius * 2.0 + v_padding * 3) * 2 * Math.floor(i / rows)];
+  };
 
-  var x_label = svg.append("g").attr("class", "x_label").selectAll("text").data(dept_names).enter().append("text").attr("text-anchor", "middle").attr("x", function (d, i) {
-    return radius + (radius * 2.0 + padding) * i;
-  }).attr("dy", -5).text(function (d) {
+  var svg = d3.select("body").append("svg").attr("width", (radius * 2.0 + h_padding) * rows + border.left + border.right).attr("height", (radius * 2.0 + v_padding * 3) * 2 * (Math.floor(dept_names.length / rows) + 1) + border.top + border.bottom).append("g").attr("transform", "translate(" + border.left + "," + border.top + ")");
+
+  svg.append("g").attr("class", "modes").selectAll("g").data(d3.range(0, Math.floor(dept_names.length / rows) + 1)).enter().append("g").attr("transform", function (d, i) {
+    return "translate(0," + (radius + (radius * 2.0 + v_padding * 3) * 2 * i) + ")";
+  }).selectAll("text").data(['research', 'teaching']).enter().append("text").attr("class", "label").attr("text-anchor", "end").attr("dx", -15).attr("y", function (d, i) {
+    return (radius * 2 + v_padding) * i;
+  }).text(function (d) {
     return trim(d, trim_value);
   });
 
-  var pair = svg.selectAll(".pair").data(['research', 'teaching']).enter().append("g").attr("class", function (d) {
+  var pair = svg.selectAll(".pair").data(dept_names).enter().append("g").attr("class", function (d) {
     return "pair " + d;
   }).attr("transform", function (d, i) {
-    return "translate(0," + (radius + (radius * 2.0 + padding) * i) + ")";
+    return "translate(" + offset(i) + ")";
   });
 
-  pair.append("text").attr("class", "y_label").attr("text-anchor", "end").attr("dx", -5).text(function (d) {
+  pair.append("text").attr("class", "label").attr("text-anchor", "middle").attr("dy", -(radius + v_padding)).text(function (d) {
     return trim(d, trim_value);
   });
 
-  var radial = pair.selectAll(".radial").data(function (mode) {
-    return dept_names.map(function (d) {
-      return { mode: mode, dept: d };
+  var radial = pair.selectAll(".radial").data(function (dept) {
+    return ['research', 'teaching'].map(function (mode) {
+      return { mode: mode, dept: dept };
     });
   }).enter().append("g").attr("class", function (d) {
-    return "radial " + d.dept;
-  }).attr("transform", function (d, i) {
-    return "translate(" + (radius + (radius * 2.0 + padding) * i) + ",0)";
+    return "radial " + d.mode;
+  }).attr("transform", function (d) {
+    return "translate(0," + (d.mode === 'research' ? 0.0 : radius * 2.0 + v_padding) + ")";
   });
 
-  radial.append("g").selectAll(".arc").data(dept_names).enter().append("path").attr("class", "arc").attr("d", arc).attr("fill", function (d, i) {
+  radial.append("g").selectAll(".arc").data(function (d) {
+    return dept_names.map(function (dn) {
+      return { focus: d.dept, dept: dn };
+    });
+  }).enter().append("path").attr("class", "arc").attr("d", arc.innerRadius(function (d) {
+    return radius - thickness + (d.focus === d.dept ? focus_thickness / 2.0 : 0.0);
+  }).outerRadius(function (d) {
+    return radius + (d.focus === d.dept ? focus_thickness : 0.0);
+  })).attr("fill", function (d, i) {
     return fill(i);
   });
 
