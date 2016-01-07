@@ -53,7 +53,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   // prepare layout
 
   var rows = 6,
-      radius = 50,
+      radius = 60,
       r_padding = 0.3,
       h_padding = 35,
       v_padding = 10,
@@ -61,7 +61,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       thickness = 5,
       focus_thickness = 3,
       chord_padding = 1,
-      trim_value = 20,
+      trim_value = 25,
       research_color = "#f16913",
       neutral_color = "gray",
       teaching_color = "#08519c",
@@ -185,4 +185,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         .attr("class", "chord")
         .attr("d", chord)
         .attr("fill", (d) => fill( dept_names.indexOf(d.department2) ) )
+        .append("title")
+          .text( (d) => d.department2 + ": " + d.links )
 })

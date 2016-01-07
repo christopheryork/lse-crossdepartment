@@ -11,18 +11,18 @@ Accounting,Management,2
 Accounting,Mathematics,1
 Accounting,Social Policy,1
 Accounting,Sociology,1
-Anthropology,Gender Institute,2
-Anthropology,Geography and Environment,2
+Anthropology,Gender,2
+Anthropology,Geography,2
 Anthropology,Government,2
 Anthropology,International Development,2
 Anthropology,Management,1
-Anthropology,Media & Communications,1
+Anthropology,Media and Communications,1
 Anthropology,Social Policy,2
 Anthropology,Sociology,2
 Anthropology,Statistics,1
 EI,Economics,1
 EI,Finance,2
-EI,Gender Institute,1
+EI,Gender,1
 EI,Geography,2
 EI,Government,8
 EI,IR,8
@@ -36,7 +36,7 @@ EI,Social Policy,3
 EI,Sociology,3
 Economic History,Economics,2
 Economic History,Finance,1
-Economic History,Gender Institute,1
+Economic History,Gender,1
 Economic History,Geography,1
 Economic History,Government,2
 Economic History,IR,1
@@ -49,7 +49,7 @@ Economic History,Social Policy,2
 Economic History,Statistics,1
 Economics,Education (UCL),2
 Economics,Finance,3
-Economics,Gender Institute,2
+Economics,Gender,2
 Economics,Geography,8
 Economics,Government,6
 Economics,IR,2
@@ -62,7 +62,7 @@ Economics,Philosophy,2
 Economics,Social Policy,4
 Economics,Sociology,1
 Economics,Statistics,1
-Finance,Gender Institute,1
+Finance,Gender,1
 Finance,Geography,1
 Finance,Government,1
 Finance,IR,2
@@ -70,26 +70,26 @@ Finance,International Development,1
 Finance,Law,2
 Finance,Management,1
 Finance,Mathematics,1
-Gender Institute,Geography and Environment,3
-Gender Institute,Government,1
-Gender Institute,IR,1
-Gender Institute,International Development,3
-Gender Institute,International History,1
-Gender Institute,Media & Communications,1
-Gender Institute,Methodology,1
-Gender Institute,Social Policy,2
-Gender Institute,Sociology,3
-Gender Institute,Statistics,1
+Gender,Geography,3
+Gender,Government,1
+Gender,IR,1
+Gender,International Development,3
+Gender,International History,1
+Gender,Media and Communications,1
+Gender,Methodology,1
+Gender,Social Policy,2
+Gender,Sociology,3
+Gender,Statistics,1
+Geography,Government,3
+Geography,Grantham Research Institute of Climate Change and the Environment,1
 Geography,IR,1
 Geography,International Development,3
 Geography,International History,1
-Geography,Media & Communications,1
+Geography,Management,1
+Geography,Media and Communications,1
+Geography,Social Policy,3
 Geography,Sociology,1
-Geography and Environment,Government,3
-Geography and Environment,Grantham Research Institute of Climate Change and the Environment,1
-Geography and Environment,Management,1
-Geography and Environment,Social Policy,3
-Geography and Environment,Statistics,1
+Geography,Statistics,1
 Government,IR,7
 Government,International Development,2
 Government,International History,4
@@ -119,22 +119,22 @@ International History,Social Policy,2
 International History,Sociology,2
 Law,Management,2
 Law,Mathematics,1
-Law,Media & Communications,2
+Law,Media and Communications,2
 Law,Methodology,2
 Law,Philosophy,3
 Law,Social Policy,2
 Law,Sociology,5
 Law,Statistics,1
 Management,Mathematics,1
-Management,Media & Communications,2
+Management,Media and Communications,2
 Management,Social Policy,1
 Management,Sociology,1
 Mathematics,Statistics,1
-Media & Communications,Psychology,1
-Media & Communications,Social Policy,1
-Media & Communications,Sociology,1
+Media and Communications,Psychology,1
+Media and Communications,Social Policy,1
+Media and Communications,Sociology,1
+Methodology,Psychology,2
 Methodology,Social Policy,1
-Methodology,Social Psychology,2
 Methodology,Sociology,2
 Philosophy,Social Policy,1
 Philosophy,Sociology,1
