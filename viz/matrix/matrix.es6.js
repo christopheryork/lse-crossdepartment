@@ -15,12 +15,18 @@ function trim(d, n) {
   return (d.length > n) ? (d.slice(0,n-3)+"...") : d
 }
 
-queue().defer(d3.csv, "../data-6.2.csv")
+function to_class(s) {
+  return s.toLowerCase().replace(/\W/g, '_')
+}
+
+queue().defer(d3.csv, "../data-6.1,6.3.csv")
+       .defer(d3.csv, "../data-6.2.csv")
        .defer(d3.csv, "../data-6.4.csv")
-       .await( (err, research, teaching) => {
+       .await( (err, depts, research, teaching) => {
   if(err) { throw err }
 
   // convert data from JSON to javascript types
+  depts.forEach( (d) => { d.faculty = +d.faculty; d.research_links = +d.research_links; d.teaching_links = +d.teaching_links })
   research.forEach( (d) => d.links = +d.links )
   teaching.forEach( (d) => d.links = +d.links )
 
@@ -30,7 +36,6 @@ queue().defer(d3.csv, "../data-6.2.csv")
   var td1 = teaching.map( (d) => d.department1 )
   var td2 = teaching.map( (d) => d.department2 )
   var dept_names = d3.set([].concat(rd1).concat(rd2).concat(td1).concat(td2)).values()
-  dept_names.sort()
   var n = dept_names.length
 
   // prepare the matrices
@@ -46,6 +51,28 @@ queue().defer(d3.csv, "../data-6.2.csv")
 
   var research_matrix = populate(research, empty_matrix(n))
   var teaching_matrix = populate(teaching, empty_matrix(n))
+
+  // prepare the orders
+
+  var faculty = d3.range(n).map( () => 0)
+  depts.forEach( (d) => faculty[dept_names.indexOf(d.department)] = d.faculty)
+
+  function count_links(di) {
+    return research_matrix[di].reduce( (a, b) => a + b) + teaching_matrix[di].reduce( (a, b) => a + b )
+  }
+
+  function emphasis_links(di) {
+    return research_matrix[di].reduce( (a, b) => a + b) - teaching_matrix[di].reduce( (a, b) => a + b )
+  }
+
+  var orders = {
+    department: d3.range(n).sort( (a, b) => d3.ascending(dept_names[a], dept_names[b])),
+    faculty: d3.range(n).sort( (a, b) => faculty[b] - faculty[a] ),
+    links: d3.range(n).sort( (a, b) => count_links(b) - count_links(a)),
+    research_isolation: d3.range(n).sort( (a, b) => faculty[a] / research_matrix[a].reduce( (a, b) => a + b) - faculty[b] / research_matrix[b].reduce( (a, b) => a + b) ),
+    teaching_isolation: d3.range(n).sort( (a, b) => faculty[a] / teaching_matrix[a].reduce( (a, b) => a + b) - faculty[b] / teaching_matrix[b].reduce( (a, b) => a + b) ),
+    emphasis: d3.range(n).sort( (a, b) => emphasis_links(b) - emphasis_links(a))
+  }
 
   // visualization proper
 
@@ -66,7 +93,7 @@ queue().defer(d3.csv, "../data-6.2.csv")
       .append("g")
 
   var scale = d3.scale.ordinal()
-    .domain(d3.range(n))
+    .domain(orders.department)
     .rangeRoundBands([0, width - padding], 0.1)
 
   var colorscale = d3.scale.linear()
@@ -92,8 +119,10 @@ queue().defer(d3.csv, "../data-6.2.csv")
       .data(points)
     .enter()
       .append("g")
+        .attr("class", (d) => "cell x_" + to_class(dept_names[d.i]) + " y_" + to_class(dept_names[d.j]))
         .attr("transform", (d) => "translate(" + scale(d.i) + "," + (padding + scale(d.j)) + ")" )
-        .attr("opacity", (d) => (d.i > d.j) ? "1.0" : "0.5" )
+//        .attr("opacity", (d) => (d.i > d.j) ? "1.0" : "0.5" )
+        .attr("fill", "transparent")
 
   g.append("title")
     .text((d) => dept_names[d.i] + " & " + dept_names[d.j] +
@@ -101,8 +130,20 @@ queue().defer(d3.csv, "../data-6.2.csv")
                ", Teaching: " + teaching_matrix[d.i][d.j])
 
   g.append("rect")
+    .attr("class", "background")
     .attr("rx", 1)
     .attr("ry", 1)
+    .attr("stroke", "none")
+    .attr("width", scale.rangeBand())
+    .attr("height", scale.rangeBand())
+    .attr("opacity", 0.2)
+    .attr("fill", "none")
+
+  g.append("rect")
+    .attr("class", "sum")
+    .attr("rx", 1)
+    .attr("ry", 1)
+
 
   // dots for linkages
 
@@ -130,12 +171,13 @@ queue().defer(d3.csv, "../data-6.2.csv")
    .selectAll("text")
     .data(dept_names)
    .enter().append("g")
-    .attr("transform", (d, i) => "translate(" + (scale(i) + 5) + ",-5)rotate(-90)")
+    .attr("transform", (d, i) => "translate(" + (scale(i) + 5) + ",-5)rotate(-55)")
    .append("text")
     .attr("class", (d, i) => "dept" + i)
     .attr("dominant-baseline", "middle")
     .text( (d) => trim(d, trim_value) )
     .attr("fill", "black")
+   .call(highlight.bind(null, "x_"))
 
   svg.append("g")
     .attr("class", "y_labels")
@@ -149,8 +191,40 @@ queue().defer(d3.csv, "../data-6.2.csv")
     .attr("dominant-baseline", "middle")
     .text( (d) => trim(d, 20) )
     .attr("fill", "black")
+   .call(highlight.bind(null, "y_"))
 
   // behavior
+
+  d3.select("#order").on("change", function() {
+//    clearTimeout(timeout)
+    order(this.value)
+  })
+
+  function highlight(prefix, sel) {
+    sel.on("mouseover", (d) => {
+      d3.selectAll(".cell.selected").classed("selected", false)
+      d3.selectAll(".cell." + prefix + to_class(d)).classed("selected", true)
+    })
+  }
+
+  function order(value) {
+    scale.domain(orders[value]);
+
+    var t = svg.transition().duration(2500);
+
+    t.selectAll(".x_labels g")
+        .delay(function(d, i) { return scale(i) * 4; })
+        .attr("transform", (d, i) => "translate(" + (scale(i) + 5) + ",-5)rotate(-55)")
+
+    t.selectAll(".cell")
+        .delay(function(d) { return scale(d.i) * 4; })
+        .attr("transform", (d) => "translate(" + scale(d.i) + "," + (padding + scale(d.j)) + ")" )
+//        .attr("opacity", (d) => (d.i > d.j) ? "1.0" : "0.5" )
+
+    t.selectAll(".y_labels text")
+        .delay(function(d, i) { return scale(i) * 4; })
+        .attr("y", (d,i) => padding + scale(i))
+  }
 
   function update() {
     var details = d3.select(".toggle input").property("checked")
@@ -159,10 +233,8 @@ queue().defer(d3.csv, "../data-6.2.csv")
       svg.selectAll(".matrix circle")
         .transition()
           .attr("visibility", "visible")
-      svg.selectAll(".matrix rect")
+      svg.selectAll(".matrix .sum")
           .attr("stroke", "grey")
-/*          .attr("x", 0)
-          .attr("y", 0) */
           .attr("width", scale.rangeBand())
           .attr("height", scale.rangeBand())
           .attr("fill", "transparent")
@@ -172,10 +244,8 @@ queue().defer(d3.csv, "../data-6.2.csv")
       svg.selectAll(".matrix circle")
         .transition()
         .attr("visibility", "hidden")
-      svg.selectAll(".matrix rect")
+      svg.selectAll(".matrix .sum")
           .attr("stroke", "none")
-/*          .attr("x", (d) => sizescale( size(d.i,d.j) ) / 2.0)
-          .attr("y", (d) => sizescale( size(d.i,d.j) ) / 2.0) */
           .attr("width", (d) => sizescale( size(d.i,d.j) ))
           .attr("height", (d) => sizescale( size(d.i,d.j) ))
           .attr("fill", (d) => {

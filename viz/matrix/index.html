@@ -7,11 +7,25 @@ body {
   background: white;
 }
 
-.toggle {
+#order {
   position: absolute;
   top: 120px;
-  left: 560px;
+  left: 580px;
   color: gray;
+}
+
+.toggle {
+  position: absolute;
+  top: 100px;
+  left: 580px;
+  color: gray;}
+
+.selected {
+  opacity: 1.0;
+}
+
+.selected .background {
+  fill: gray;
 }
 
 svg {
@@ -23,15 +37,27 @@ text {
 }
 
 .x_labels {
+  cursor: pointer;
   opacity: 0.7;
 }
 
 .y_labels {
+  cursor: pointer;
   opacity: 0.7;
 }
 
 </style>
 <body>
+
+<select id="order">
+  <option value="department">by department name</option>
+  <option value="links">by total links</option>
+  <option value="emphasis">by links' reesarch/teaching emphasis</option>
+  <option value="faculty">by faculty size</option>
+  <option value="research_isolation">by faculty members per research linkage</option>
+  <option value="teaching_isolation">by faculty members per teaching linkage</option>
+</select>
+<br/>
 <label class="toggle"><input type="checkbox" id="cbox" value="second_checkbox" checked>Details</label>
 <script src="../js/d3.min.js"></script>
 <script src="../js/queue.min.js"></script>
