@@ -3,22 +3,21 @@
 <style>
 
 body {
-  font: 10px sans-serif;
+  font: 11px sans-serif;
   background: white;
+  margin: 20px;
 }
 
 #order {
   position: absolute;
-  top: 120px;
-  left: 580px;
   color: gray;
+  border: 1px dotted gray;
+  padding: 8px;
 }
 
-.toggle {
-  position: absolute;
-  top: 100px;
-  left: 580px;
-  color: gray;}
+#order dl {
+  margin: 0;
+}
 
 .selected {
   opacity: 1.0;
@@ -28,37 +27,46 @@ body {
   fill: gray;
 }
 
-svg {
-  margin: 20px;
-}
-
 text {
   stroke: none;
 }
 
-.x_labels {
+.labels {
   cursor: pointer;
+}
+
+.legend text {
   opacity: 0.7;
 }
 
-.y_labels {
-  cursor: pointer;
-  opacity: 0.7;
+svg text::selection { background: none; }
+
+.disable-selection {
+     -moz-user-select: none; /* Firefox */
+      -ms-user-select: none; /* Internet Explorer */
+   -khtml-user-select: none; /* KHTML browsers (e.g. Konqueror) */
+  -webkit-user-select: none; /* Chrome, Safari, and Opera */
+  -webkit-touch-callout: none; /* Disable Android and iOS callouts*/
 }
 
 </style>
 <body>
 
-<select id="order">
-  <option value="department">by department name</option>
-  <option value="links">by total links</option>
-  <option value="emphasis">by links' reesarch/teaching emphasis</option>
-  <option value="faculty">by faculty size</option>
-  <option value="research_isolation">by faculty members per research linkage</option>
-  <option value="teaching_isolation">by faculty members per teaching linkage</option>
-</select>
-<br/>
-<label class="toggle"><input type="checkbox" id="cbox" value="second_checkbox" checked>Details</label>
+<h1>Cross-Departmental Research and Teaching at the LSE</h1>
+
+<form id="order" class="disable-selection">
+<dl>
+  <dt>Order</dt>
+  <dd>
+    <label><input type="radio" name="order" value="department" checked/>&nbsp;department</label><br/>
+    <label><input type="radio" name="order" value="links"/>&nbsp;count of links</label><br/>
+    <label><input type="radio" name="order" value="emphasis"/>&nbsp;link balance</label><br/>
+    <label><input type="radio" name="order" value="faculty"/>&nbsp;faculty size</label><br/>
+    <br/>
+  </dd>
+</dl>
+<label class="toggle"><input type="checkbox" id="cbox" value="second_checkbox">&nbsp;Details</label>
+</form>
 <script src="../js/d3.min.js"></script>
 <script src="../js/queue.min.js"></script>
 <script src="matrix.js"></script>

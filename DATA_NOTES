@@ -1,0 +1,46 @@
+* In Table 6.2, pages 15 & 18: "Accounting, Management" and "Social Policy, Economic History" are listed twice, with different values.
+
+* In Table 6.2, page 18: "Social Policy, Sociology" and "Sociology, Social Policy" list different values.
+
+* On page 16: The rest of this table (6.2) consists of pairs.  Is "Economics, Finance, Law" a typo?
+
+* Similarly, on pages 19-20: A number of these entries are not simple pairs/dyads.  Given this, should we consider each course a single "link" (between multiple departments)?  Or a collection of links, between each combination of pairs of departments?
+
+* Can we regularise these variants (in tables 6.2 & 6.4)? (or let me know if they are actually different academic units)
+
+  - "Gender Institute" vs. "Gender"
+  - "Social Psychology" vs. "Psychology"
+  - "Geography and Environment" vs. "Geography"
+  - "Media & Communications" vs. "Media and Communications"
+  - "International Relations" vs. "IR"
+  - "Philosophy" vs. "Philosophy, Logic, Scientific Method"
+  - "Geography" vs. "Geography and Environment"
+
+* Summing up the dyadic research links (table 6.2), I get slightly different numbers from table 6.1.  Any ideas?  I suspect I am misinterpreting table 6.2, as it seems like some pairs are missing (e.g. there is an entry for "Accounting, Economics -> 1", but no corresponding entry for "Economics, Accounting -> 1").
+
+Accounting : 17
+Anthropology : 15
+EI : 41
+Economic History : 16
+Economics : 43
+Finance : 19
+Gender : 24
+Geography : 33
+Government : 66
+IR : 41
+International Development : 27
+International History : 21
+Law : 47
+Management : 24
+Mathematics : 8
+Media and Communications : 10
+Methodology : 15
+Philosophy : 16
+Social Policy : 38
+Sociology : 36
+Statistics : 11
+Education (UCL) : 2
+Grantham Research Institute of Climate Change and the Environment : 1
+Psychology : 3
+
+* I also get different sums for teaching links from table 6.3, but I suspect ironing out questions above may make these numbers line up.
