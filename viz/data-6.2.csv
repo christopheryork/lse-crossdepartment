@@ -1,110 +1,106 @@
 department1,department2,links
-Accounting,EI,1
 Accounting,Economics,1
 Accounting,Finance,3
 Accounting,Government,2
-Accounting,IR,1
 Accounting,International Development,1
+Accounting,International Relations,1
 Accounting,Law,3
-Accounting,Management,3
-Accounting,Management,2
+Accounting,Management,5
 Accounting,Mathematics,1
 Accounting,Social Policy,1
 Accounting,Sociology,1
-Anthropology,Gender,2
-Anthropology,Geography,2
+Accounting ,EI,1
+Anthropology,Gender Institute,2
 Anthropology,Government,2
 Anthropology,International Development,2
 Anthropology,Management,1
-Anthropology,Media and Communications,1
+Anthropology,Media & Communications,1
 Anthropology,Social Policy,2
 Anthropology,Sociology,2
 Anthropology,Statistics,1
-EI,Economics,1
+Anthropology ,Geography & Environment,2
+EI,Economics ,1
 EI,Finance,2
-EI,Gender,1
-EI,Geography,2
+EI,Gender Institute ,1
+EI,Geography & Environment,2
 EI,Government,8
-EI,IR,8
-EI,International History,3
+EI,International History ,3
+EI,International Relations ,8
 EI,Law,4
-EI,Management,2
-EI,Mathematics,1
+EI,Management ,2
+EI,Mathematics ,1
 EI,Methodology,1
-EI,Philosophy,1
-EI,Social Policy,3
-EI,Sociology,3
+EI,Philosophy/Logic/Scientific Method,1
+EI,Philosophy/Logic/Scientific Method ,1
+EI,Social Policy ,3
+EI,Sociology ,3
 Economic History,Economics,2
 Economic History,Finance,1
-Economic History,Gender,1
-Economic History,Geography,1
+Economic History,Gender Institute,1
+Economic History,Geography & Environment,1
 Economic History,Government,2
 Economic History,IR,1
 Economic History,International Development,1
 Economic History,International History,1
 Economic History,Law,1
-Economic History,Philosophy,2
-Economic History,Social Policy,1
-Economic History,Social Policy,2
+Economic History,Philosophy/Logic/Scientific Method,2
+Economic History,Social Policy,3
 Economic History,Statistics,1
 Economics,Education (UCL),2
-Economics,Finance,3
-Economics,Gender,2
-Economics,Geography,8
+Economics,Finance,4
+Economics,Gender Institute,2
+Economics,Geography & Environment,8
 Economics,Government,6
 Economics,IR,2
 Economics,International Development,1
 Economics,International History,1
-Economics,Law,3
+Economics,Law,4
 Economics,Management,2
 Economics,Mathematics,1
-Economics,Philosophy,2
+Economics,Philosophy/Logic/Scientific Method,2
 Economics,Social Policy,4
 Economics,Sociology,1
 Economics,Statistics,1
-Finance,Gender,1
-Finance,Geography,1
+Finance,Gender Institute,1
+Finance,Geography & Environment,1
 Finance,Government,1
-Finance,IR,2
 Finance,International Development,1
-Finance,Law,2
+Finance,International Relations,2
+Finance,Law,3
 Finance,Management,1
 Finance,Mathematics,1
-Gender,Geography,3
-Gender,Government,1
-Gender,IR,1
-Gender,International Development,3
-Gender,International History,1
-Gender,Media and Communications,1
-Gender,Methodology,1
-Gender,Social Policy,2
-Gender,Sociology,3
-Gender,Statistics,1
-Geography,Government,3
-Geography,Grantham Research Institute of Climate Change and the Environment,1
-Geography,IR,1
-Geography,International Development,3
-Geography,International History,1
-Geography,Management,1
-Geography,Media and Communications,1
-Geography,Social Policy,3
-Geography,Sociology,1
-Geography,Statistics,1
-Government,IR,7
+Gender Institute,Geography & Environment,3
+Gender Institute,Government,1
+Gender Institute,IR,1
+Gender Institute,International Development,3
+Gender Institute,International History,1
+Gender Institute,Media & Communications,1
+Gender Institute,Methodology,1
+Gender Institute,Social Policy,2
+Gender Institute,Sociology,3
+Gender Institute,Statistics,1
+Geography & Environment,Government,3
+Geography & Environment,Grantham Research Institute of Climate Change and the Environment ,1
+Geography & Environment,IR,1
+Geography & Environment,International Development,3
+Geography & Environment,International History,1
+Geography & Environment,Management,1
+Geography & Environment,Media & Communications,1
+Geography & Environment,Social Policy,3
+Geography & Environment,Sociology,1
+Geography & Environment,Statistics,1
 Government,International Development,2
 Government,International History,4
+Government,International Relations,7
 Government,Law,9
 Government,Management,3
 Government,Methodology,3
-Government,Philosophy,4
+Government,Philosophy/Logic/Scientific Method,4
 Government,Social Policy,3
 Government,Sociology,6
 IR,International History,4
-IR,Law,4
-IR,Management,2
 IR,Mathematics,1
 IR,Methodology,1
-IR,Philosophy,1
 IR,Social Policy,3
 IR,Sociology,2
 International Development,Law,2
@@ -117,29 +113,32 @@ International History,Law,1
 International History,Methodology,1
 International History,Social Policy,2
 International History,Sociology,2
+International Relations,Law,4
+International Relations,Management,2
+International Relations,Philosophy/Logic/Scientific Method,1
 Law,Management,2
 Law,Mathematics,1
-Law,Media and Communications,2
+Law,Media & Communications,2
 Law,Methodology,2
-Law,Philosophy,3
+Law,Philosophy/Logic/Scientific Method,3
 Law,Social Policy,2
 Law,Sociology,5
 Law,Statistics,1
 Management,Mathematics,1
-Management,Media and Communications,2
+Management,Media & Communications,2
 Management,Social Policy,1
 Management,Sociology,1
 Mathematics,Statistics,1
-Media and Communications,Psychology,1
-Media and Communications,Social Policy,1
-Media and Communications,Sociology,1
-Methodology,Psychology,2
+Media & Communications,Social Policy ,1
+Media & Communications,Social Psychology,1
+Media & Communications,Sociology,1
+Media & Communications,Sociology ,1
 Methodology,Social Policy,1
+Methodology,Social Psychology,2
 Methodology,Sociology,2
-Philosophy,Social Policy,1
-Philosophy,Sociology,1
-Philosophy,Statistics,1
-Social Policy,Sociology,4
-Social Policy,Sociology,2
+Philosophy/Logic/Scientific Method,Social Policy,1
+Philosophy/Logic/Scientific Method,Sociology,1
+Philosophy/Logic/Scientific Method,Statistics,1
+Social Policy,Sociology,6
 Social Policy,Statistics,1
 Sociology,Statistics,1
