@@ -1,4 +1,5 @@
 department1,department2,links
+Accounting,EI,1
 Accounting,Economics,1
 Accounting,Finance,3
 Accounting,Government,2
@@ -9,8 +10,8 @@ Accounting,Management,5
 Accounting,Mathematics,1
 Accounting,Social Policy,1
 Accounting,Sociology,1
-Accounting ,EI,1
 Anthropology,Gender Institute,2
+Anthropology,Geography & Environment,2
 Anthropology,Government,2
 Anthropology,International Development,2
 Anthropology,Management,1
@@ -18,30 +19,28 @@ Anthropology,Media & Communications,1
 Anthropology,Social Policy,2
 Anthropology,Sociology,2
 Anthropology,Statistics,1
-Anthropology ,Geography & Environment,2
-EI,Economics ,1
+EI,Economics,1
 EI,Finance,2
-EI,Gender Institute ,1
+EI,Gender Institute,1
 EI,Geography & Environment,2
 EI,Government,8
-EI,International History ,3
-EI,International Relations ,8
+EI,International History,3
+EI,International Relations,8
 EI,Law,4
-EI,Management ,2
-EI,Mathematics ,1
+EI,Management,2
+EI,Mathematics,1
 EI,Methodology,1
 EI,Philosophy/Logic/Scientific Method,1
-EI,Philosophy/Logic/Scientific Method ,1
-EI,Social Policy ,3
-EI,Sociology ,3
+EI,Social Policy,3
+EI,Sociology,3
 Economic History,Economics,2
 Economic History,Finance,1
 Economic History,Gender Institute,1
 Economic History,Geography & Environment,1
 Economic History,Government,2
-Economic History,IR,1
 Economic History,International Development,1
 Economic History,International History,1
+Economic History,International Relations,1
 Economic History,Law,1
 Economic History,Philosophy/Logic/Scientific Method,2
 Economic History,Social Policy,3
@@ -51,9 +50,9 @@ Economics,Finance,4
 Economics,Gender Institute,2
 Economics,Geography & Environment,8
 Economics,Government,6
-Economics,IR,2
 Economics,International Development,1
 Economics,International History,1
+Economics,International Relations,2
 Economics,Law,4
 Economics,Management,2
 Economics,Mathematics,1
@@ -71,19 +70,19 @@ Finance,Management,1
 Finance,Mathematics,1
 Gender Institute,Geography & Environment,3
 Gender Institute,Government,1
-Gender Institute,IR,1
 Gender Institute,International Development,3
 Gender Institute,International History,1
+Gender Institute,International Relations,1
 Gender Institute,Media & Communications,1
 Gender Institute,Methodology,1
 Gender Institute,Social Policy,2
 Gender Institute,Sociology,3
 Gender Institute,Statistics,1
 Geography & Environment,Government,3
-Geography & Environment,Grantham Research Institute of Climate Change and the Environment ,1
-Geography & Environment,IR,1
+Geography & Environment,Grantham Research Institute of Climate Change and the Environment,1
 Geography & Environment,International Development,3
 Geography & Environment,International History,1
+Geography & Environment,International Relations,1
 Geography & Environment,Management,1
 Geography & Environment,Media & Communications,1
 Geography & Environment,Social Policy,3
@@ -98,24 +97,24 @@ Government,Methodology,3
 Government,Philosophy/Logic/Scientific Method,4
 Government,Social Policy,3
 Government,Sociology,6
-IR,International History,4
-IR,Mathematics,1
-IR,Methodology,1
-IR,Social Policy,3
-IR,Sociology,2
 International Development,Law,2
 International Development,Management,3
 International Development,Methodology,1
 International Development,Social Policy,4
 International Development,Sociology,2
 International Development,Statistics,1
+International History,International Relations,4
 International History,Law,1
 International History,Methodology,1
 International History,Social Policy,2
 International History,Sociology,2
 International Relations,Law,4
 International Relations,Management,2
+International Relations,Mathematics,1
+International Relations,Methodology,1
 International Relations,Philosophy/Logic/Scientific Method,1
+International Relations,Social Policy,3
+International Relations,Sociology,2
 Law,Management,2
 Law,Mathematics,1
 Law,Media & Communications,2
@@ -129,10 +128,9 @@ Management,Media & Communications,2
 Management,Social Policy,1
 Management,Sociology,1
 Mathematics,Statistics,1
-Media & Communications,Social Policy ,1
+Media & Communications,Social Policy,1
 Media & Communications,Social Psychology,1
 Media & Communications,Sociology,1
-Media & Communications,Sociology ,1
 Methodology,Social Policy,1
 Methodology,Social Psychology,2
 Methodology,Sociology,2
