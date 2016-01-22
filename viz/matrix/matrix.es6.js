@@ -82,7 +82,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     return research_matrix[di].reduce( (a, b) => a + b) + teaching_matrix[di].reduce( (a, b) => a + b )
   }
 
-  function emphasis_links(di) {
+  function balance_links(di) {
     return research_matrix[di].reduce( (a, b) => a + b) - teaching_matrix[di].reduce( (a, b) => a + b )
   }
 
@@ -90,13 +90,13 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     department: d3.range(n).sort( (a, b) => d3.ascending(dept_names[a], dept_names[b])),
     faculty: d3.range(n).sort( (a, b) => faculty[b] - faculty[a] ),
     links: d3.range(n).sort( (a, b) => count_links(b) - count_links(a)),
-    emphasis: d3.range(n).sort( (a, b) => emphasis_links(b) - emphasis_links(a))
+    balance: d3.range(n).sort( (a, b) => balance_links(b) - balance_links(a))
   }
 
   var metrics = {
     faculty: (d) => faculty[d],
     links: (d) => count_links(d),
-    emphasis: (d) => emphasis_links(d)
+    balance: (d) => balance_links(d)
   }
 
   // visualization proper

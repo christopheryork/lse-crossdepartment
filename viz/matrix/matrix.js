@@ -111,7 +111,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     });
   }
 
-  function emphasis_links(di) {
+  function balance_links(di) {
     return research_matrix[di].reduce(function (a, b) {
       return a + b;
     }) - teaching_matrix[di].reduce(function (a, b) {
@@ -129,8 +129,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     links: d3.range(n).sort(function (a, b) {
       return count_links(b) - count_links(a);
     }),
-    emphasis: d3.range(n).sort(function (a, b) {
-      return emphasis_links(b) - emphasis_links(a);
+    balance: d3.range(n).sort(function (a, b) {
+      return balance_links(b) - balance_links(a);
     })
   };
 
@@ -141,8 +141,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     links: function links(d) {
       return count_links(d);
     },
-    emphasis: function emphasis(d) {
-      return emphasis_links(d);
+    balance: function balance(d) {
+      return balance_links(d);
     }
   };
 
