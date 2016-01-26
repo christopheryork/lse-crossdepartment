@@ -1,7 +1,6 @@
 department1,department2,links
 Accounting,Economics,1
-Accounting,Finance,3
-Accounting,Finance,1
+Accounting,Finance,4
 Accounting,Geography & Environment,1
 Accounting,Law,1
 Anthropology,Economics,1
@@ -9,40 +8,36 @@ Anthropology,Gender Institute,1
 Anthropology,Geography & Environment,1
 Anthropology,Government,1
 Anthropology,International Development,2
-Anthropology,Law,2
-Anthropology,Law,1
+Anthropology,Law,3
 Anthropology,Media & Communications,1
 Anthropology,Social Policy,1
 Anthropology,Sociology,1
 Anthropology,Statistics,1
-EI,Government,1
+EI,Government,3
 EI,International Development,1
-EI,International Relations,1
+EI,International Relations,2
 EI,Sociology,1
 Economic History,Economics,2
 Economic History,International Development,1
-Economics,Finance,1
+Economics,Finance,2
 Economics,Gender Institute,1
-Economics,Geography & Environment,2
-Economics,Geography & Environment,1
-Economics,Government,2
-Economics,Government,1
+Economics,Geography & Environment,4
+Economics,Government,4
 Economics,Law,1
 Economics,Management,1
 Economics,Mathematics,2
 Economics,Media & Communications,1
-Economics,Philosophy/Logic/Scientific Method,2
-Economics,Philosophy/Logic/Scientific Method,1
-Economics,Social Policy,1
+Economics,Philosophy/Logic/Scientific Method,3
+Economics,Social Policy,2
 Economics,Sociology,1
 Economics,Statistics,1
 Finance,Geography & Environment,1
-Finance,Mathematics,1
-Finance,Statistics,1
+Finance,Mathematics,2
+Finance,Statistics,2
 Gender Institute,Geography & Environment,1
 Gender Institute,Government,1
 Gender Institute,Law,1
-Gender Institute,Media & Communications,1
+Gender Institute,Media & Communications,2
 Gender Institute,Social Policy,1
 Gender Institute,Sociology,1
 Gender Institute,Statistics,1
@@ -55,13 +50,12 @@ Geography & Environment,Sociology,1
 Geography & Environment,Statistics,1
 Government,International Development,1
 Government,International History,2
-Government,International Relations,2
-Government,International Relations,1
-Government,Law,1
+Government,International Relations,4
+Government,Law,2
 Government,Media & Communications,1
-Government,Philosophy/Logic/Scientific Method,1
-Government,Social Policy,1
-Government,Sociology,1
+Government,Philosophy/Logic/Scientific Method,2
+Government,Social Policy,2
+Government,Sociology,2
 Government,Statistics,1
 International Development,International Relations,1
 International Development,NY Law School,1
@@ -73,10 +67,10 @@ Law,Sociology,1
 Law,Statistics,1
 London School of Hygiene and Tropical Medicine,Social Policy,1
 Management,Social Policy,1
-Mathematics,Statistics,1
+Mathematics,Statistics,3
 Media & Communications,Social Policy,1
 Media & Communications,Sociology,1
 Media & Communications,Statistics,1
-Social Policy,Sociology,1
+Social Policy,Sociology,2
 Social Policy,Statistics,1
 Sociology,Statistics,1

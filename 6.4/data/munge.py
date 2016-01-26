@@ -7,26 +7,27 @@ import itertools
 
 df = pd.read_csv(sys.stdin)
 
-data = []
-
 def permute(d):
-  global data                # sometimes it's easier to cheat a little
-
   depts = d['Departments'].split(', ')
   total = d['Total']
+
+  data = []
+
   for x, y in itertools.permutations(depts, 2):
     if x < y:
-      data = data + [ { 'department1': x,
-                        'department2': y,
-                        'links': total } ]
+        data = data + [ { 'department1': x,
+                          'department2': y,
+                          'links': total } ]
 
-  return df.size
+  return data
 
-
-df.apply(permute, axis=1)
+# explode permutations to a simple list of tuples
+data = df.apply(permute, axis=1).tolist()
+data = list(itertools.chain(*data))
 
 df2 = pd.DataFrame(data, columns=['department1', 'department2', 'links'])
 
-df2 = df2.drop_duplicates().sort(['department1', 'department2'])
+# for table 6.4, duplicates indicate different links so sum them
+df2 = df2.groupby(['department1', 'department2']).sum()
 
-df2.to_csv(sys.stdout, index=False)
+df2.to_csv(sys.stdout)
