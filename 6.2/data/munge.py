@@ -14,6 +14,6 @@ df2 = pd.DataFrame({'links':       df['links'],
                     'department1': df.apply(min, axis=1),
                     'department2': df.apply(max, axis=1)})
 
-df2 = df2.drop_duplicates().sort(['department1', 'department2'])
+df2 = df2.sort(['department1', 'department2'])
 
 df2.to_csv(sys.stdout, index=False)
