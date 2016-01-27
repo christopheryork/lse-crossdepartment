@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+body {
+  font: 11px sans-serif;
+  background: white;
+  margin: 20px;
+}
+
+#order {
+  position: absolute;
+  color: gray;
+  border: 1px dotted gray;
+  padding: 8px;
+}
+
+#order dl {
+  margin: 0;
+}
+
+#viz {
+  font: 12px sans-serif;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+#viz li {
+  display: inline;
+  list-style-type: none;
+  margin: 10px;
+}
+
+#viz li.selected {
+  text-decoration: underline;
+}
+
+#viz li:hover {
+  cursor: pointer;
+}
+
+.selected .background {
+  fill: gray;
+}
+
+.labels {
+  cursor: pointer;
+}
+
+.legend text {
+  opacity: 0.7;
+}
+
+svg text::selection {
+  background: none;
+}
+
+.disable-selection {
+     -moz-user-select: none;   /* Firefox */
+      -ms-user-select: none;   /* Internet Explorer */
+   -khtml-user-select: none;   /* KHTML browsers (e.g. Konqueror) */
+  -webkit-user-select: none;   /* Chrome, Safari, and Opera */
+  -webkit-touch-callout: none; /* Disable Android and iOS callouts*/
+}
+
+</style>
+<body>
+
+<h1>Trans<!-- Cross-Departmental Research and Teaching at the LSE--></h1>
+
+<ul id="viz" class="disable-selection">
+</ul>
+
+<form id="order" class="disable-selection">
+<dl>
+  <dt>Order</dt>
+  <dd>
+    <label><input type="radio" name="order" value="department" checked/>&nbsp;department</label><br/>
+    <label><input type="radio" name="order" value="links"/>&nbsp;count of links</label><br/>
+    <label><input type="radio" name="order" value="emphasis"/>&nbsp;link balance</label><br/>
+    <label><input type="radio" name="order" value="faculty"/>&nbsp;faculty size</label><br/>
+    <br/>
+  </dd>
+</dl>
+<label class="toggle"><input type="checkbox" id="cbox" value="second_checkbox">&nbsp;Details</label>
+</form>
+<script src="../js/d3.min.js"></script>
+<script src="../js/queue.min.js"></script>
+<script src="final.es6.js"></script>
+</body>
