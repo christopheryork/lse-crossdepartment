@@ -30,8 +30,7 @@ EI,Law,4
 EI,Management,2
 EI,Mathematics,1
 EI,Methodology,1
-EI,Philosophy/Logic/Scientific Method,1
-EI,Philosophy/Logic/Scientific Method,1
+EI,Philosophy/Logic/Scientific Method,2
 EI,Social Policy,3
 EI,Sociology,3
 Economic History,Economics,2
@@ -128,8 +127,7 @@ Management,Mathematics,1
 Management,Media & Communications,2
 Management,Social Policy,1
 Management,Sociology,1
-Mathematics,Statistics,1
-Mathematics,Statistics,1
+Mathematics,Statistics,2
 Media & Communications,Social Policy,1
 Media & Communications,Social Psychology,1
 Media & Communications,Sociology,1
@@ -139,8 +137,7 @@ Methodology,Social Psychology,2
 Methodology,Sociology,2
 Philosophy/Logic/Scientific Method,Social Policy,1
 Philosophy/Logic/Scientific Method,Sociology,1
-Philosophy/Logic/Scientific Method,Statistics,1
-Philosophy/Logic/Scientific Method,Statistics,1
+Philosophy/Logic/Scientific Method,Statistics,2
 Social Policy,Sociology,6
 Social Policy,Statistics,1
 Sociology,Statistics,1
