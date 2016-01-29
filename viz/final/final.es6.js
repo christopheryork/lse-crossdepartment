@@ -1,13 +1,5 @@
 // This file must be pre-processed for Safari, as it uses arrow functions.
 
-function empty_matrix(n) {
-  return d3.range(0,n).map( () => {
-    return d3.range(0,n).map( () => 0.0 )
-  })
-}
-
-const DUR = 2000
-
 queue().defer(d3.csv, "../data-6.1,6.3.csv")
        .defer(d3.csv, "../data-6.2.csv")
        .defer(d3.csv, "../data-6.4.csv")
@@ -49,111 +41,111 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   // vizualization proper
 
-  var width = 850,
-      height = 400,
-      margins = { top: 90, left: 150, right: 50, bottom: 0 }
+  var width, height,
+      innerRadius, outerRadius, chordRadius, labelRadius
+
+  var margins = { top: 0, left: 150, right: 50, bottom: 0 }
 
   var svg = d3.select("body").append("svg")
-        .attr("width", width + margins.left + margins.right)
-        .attr("height", height + margins.top + margins.bottom)
-      .append("g")
+
+  var g = svg.append("g")
         .attr("transform", "translate(" + margins.left + "," + margins.top + ")")
 
 
-  // test data for animation
+  function add_nodes(elem) {
+    elem = elem.selectAll("g")
+       .data(dept_names)
+      .enter()
+       .append("g")
+       .attr("class", "dept")
 
-  var totals = research_matrix.map( (d) => d.reduce( (a,b) => a + b, 0.0) )
+    elem.append("text")
+      .text( (d) => d )
 
-  var x = d3.scale.ordinal()
-    .domain(dept_names)
-    .rangeRoundBands([0, width], 0.1)
-
-  var y = d3.scale.linear()
-    .domain([0, d3.max(totals)])
-    .range([height, 0])
-
-  var y2 = d3.scale.linear()
-    .domain([0, totals.reduce( (a,b) => a + b, 0.0)])
-    .range([height, 0])
-
-  var r = d3.scale.linear()
-    .domain([0, totals.reduce( (a,b) => a + b, 0.0)])
-    .range([0, 2 * Math.PI])
-
-  var offset = (i) => {
-    var sweep = totals.slice(0, i)
-    return sweep.reduce( (a,b) => a + b, 0.0 )
+    elem.append("path")
   }
 
-  var color = d3.scale.category20b()
+  var nodes1 = g.append("g").call(add_nodes)
+  var nodes2 = g.append("g").call(add_nodes)
 
-  var rect = (d, i) => "M" + x(d) + "," + y(totals[i]) + "h" + x.rangeBand() + "V" + y(0) + "h" + -x.rangeBand() + "Z"
-  var rect2 = (d, i) => "M" + x(d) + "," + y2(offset(i) + totals[i]) + "h" + x.rangeBand() + "V" + y2(offset(i)) + "h" + -x.rangeBand() + "Z"
-  var rect3 = (d, i) => "M0," + y2(offset(i) + totals[i]) + "h" + x.rangeBand() + "V" + y2(offset(i)) + "h" + -x.rangeBand() + "Z"
 
-  var arc = d3.svg.arc()
-    .innerRadius(height / 2.0 - 20)
-    .outerRadius(height / 2.0)
-    .startAngle( (d,i) => r( offset(i) ) )
-    .endAngle( (d,i) => r( offset(i) + totals[i]) )
+  // render different views of data
 
-  var paths = svg.selectAll("path")
-    .data(dept_names)
-
-  paths.enter()
-    .append("path")
-      .attr("d", (d,i) => {
-        "M0," + y(0) + "h" + x.rangeBand() + "V" + y(0) + "h" -x.rangeBand() + "Z"
-      })
-      .attr("fill", color)
-
-  // different views
-
-  var vizualizations = {
-    bar: function() {
-      paths.transition()
-        .delay( (d,i) => (DUR / totals.length) * i )
-        .duration(DUR / totals.length)
-        .attr("transform", "translate(0,0)")
-        .attr("d", (d) => rect(d, dept_names.indexOf(d)))
-    },
-    stack: function() {
-      paths.transition()
-        .delay( (d,i) => (DUR / totals.length) * i )
-        .duration(DUR / totals.length)
-        .attr("transform", "translate(0,0)")
-        .attr("d", (d) => rect2(d, dept_names.indexOf(d)))
-      .transition()
-        .delay( (d,i) => (DUR / totals.length) * i )
-        .duration(DUR / totals.length)
-        .attr("d", (d) => rect3(d, dept_names.indexOf(d)))
-    },
-    donut: function() {
-      paths.transition()
-        .duration(DUR)
-        .attr("transform", "translate(" + (width / 2.0) + "," + (height / 2.0) + ")")
-        .attr("d", (d) => arc(d, dept_names.indexOf(d)))
-    }
+  function render_common() {
+    svg.attr("width", width + margins.left + margins.right)
+       .attr("height", height + margins.top + margins.bottom)
   }
 
-  // view transitions
+  function render_matrix() {
+    render_common()
+  }
+
+  function render_chords() {
+    render_common()
+  }
+
+  var render = {
+    matrix: render_matrix,
+    chords: render_chords
+  }
+
+
+  // select current view
 
   function show(d) {
     d3.selectAll("#viz li")
       .classed("selected", false)
     d3.select("#viz #" + d)
       .classed("selected", true)
-    vizualizations[d].call()
+    render[d].call()
   }
 
   d3.select("#viz")
      .selectAll("li")
-    .data(d3.keys(vizualizations))
+    .data(d3.keys(render))
      .enter().append("li")
       .attr("id", (d) => d)
       .text((d) => d)
      .on("click", show)
 
-  show("bar")
+
+  // layout
+
+  function relayout(minWidth) {
+    width = minWidth - margins.left - margins.right
+    height = minWidth * 0.7 - margins.top - margins.bottom
+
+    innerRadius = Math.min(width / 2.0, height) * .41
+    outerRadius = innerRadius * 1.05
+    chordRadius = innerRadius * 0.99
+    labelRadius = innerRadius * 1.1
+  }
+
+  window.onresize = function() {
+    var v_id = d3.select("#viz li.selected").attr("id"),
+        v_fn = render[v_id]
+
+    relayout(window.innerWidth)
+    if(v_fn) { v_fn.call() }
+  }
+
+
+  // initial state
+
+  relayout(window.innerWidth)
+  show(d3.keys(render)[0])
 
 })
+
+
+// Utility functions
+
+function empty_matrix(n) {
+  return d3.range(0,n).map( () => {
+    return d3.range(0,n).map( () => 0.0 )
+  })
+}
+
+function total(matrix, i) {
+  return matrix[i].reduce( (a,b) => a+b )
+}

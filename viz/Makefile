@@ -1,4 +1,4 @@
-default: data-6.1,6.3.csv data-6.2.csv data-6.4.csv dual/dual.js combined-chord/combined-chord.js matrix/matrix.js multiples/multiples.js
+default: data-6.1,6.3.csv data-6.2.csv data-6.4.csv dual/dual.js combined-chord/combined-chord.js matrix/matrix.js multiples/multiples.js final/final.js
 
 data-6.1,6.3.csv:
 	cd ../6.1,6.3/data && $(MAKE) && cp data*.csv ../../viz
@@ -21,9 +21,13 @@ matrix/matrix.js: matrix/matrix.es6.js
 multiples/multiples.js: multiples/multiples.es6.js
 	babel multiples/multiples.es6.js -o multiples/multiples.js
 
+final/final.js: final/final.es6.js
+	babel final/final.es6.js -o final/final.js
+
 clean:
 	rm data*.csv
 	rm combined-chord/combined-chord.js
 	rm dual/dual.js
 	rm matrix/matrix.js
 	rm multiples/multiples.js
+	rm final/final.js
