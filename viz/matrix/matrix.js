@@ -153,8 +153,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       margins = { top: 90, left: 150, right: 50, bottom: 0 },
       legend_cell = 7,
       legend_packing = 1,
-      cell_packing = 3,
-      cell_padding = 1,
+      cell_packing = 4,
+      // should be ceiling(sqrt(max count of links))
+  cell_padding = 1,
       stroke_width = 1.0,
       trim_value = 27,
       research_color_1 = "red",
@@ -171,7 +172,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   var colorscale = d3.scale.linear().domain([-9, -2, 0, 4.5, 9]).range([teaching_color, teaching_color, neutral_color, research_color_1, research_color_2]);
 
-  var sizescale = d3.scale.linear().domain([0, 10]).range([3, scale.rangeBand()]);
+  var sizescale = d3.scale.linear().domain([0, 11]) // should be max count of links
+  .range([3, scale.rangeBand()]);
 
   var size = function size(i, j) {
     return research_matrix[i][j] + teaching_matrix[i][j];

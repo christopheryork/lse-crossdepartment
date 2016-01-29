@@ -106,7 +106,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       margins = { top: 90, left: 150, right: 50, bottom: 0 },
       legend_cell = 7,
       legend_packing = 1,
-      cell_packing = 3,
+      cell_packing = 4, // should be ceiling(sqrt(max count of links))
       cell_padding = 1,
       stroke_width = 1.0,
       trim_value = 27,
@@ -133,7 +133,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     .range([teaching_color, teaching_color, neutral_color, research_color_1, research_color_2])
 
   var sizescale = d3.scale.linear()
-    .domain([0, 10])
+    .domain([0, 11])  // should be max count of links
     .range([3, scale.rangeBand()])
 
   var size = (i,j) => research_matrix[i][j] + teaching_matrix[i][j]
