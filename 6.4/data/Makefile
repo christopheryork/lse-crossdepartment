@@ -1,6 +1,6 @@
 default: data-6.4.csv
 
-raw0.csv:
+raw0.csv: excel-revised-table.csv
 	tr "\r" "\n" < excel-revised-table.csv > raw0.csv
 
 raw1.csv: raw0.csv
