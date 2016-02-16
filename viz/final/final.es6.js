@@ -62,17 +62,14 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   // vizualization proper
 
-  var width = window.innerWidth,
-      height = width * 0.7,
-      innerRadius = width * .175,
-      outerRadius = innerRadius * 1.05,
-      chordRadius = innerRadius * 0.99,
-      labelRadius = innerRadius * 1.15,
-      padAngle = 0.01,
-      chordWidth = 0.04,
-      mode_dur = 750,
-      firstSlide = 2500,
-      slideSpeed = 7500
+  var width, height,
+      innerRadius, outerRadius, chordRadius, labelRadius
+
+  const padAngle = 0.01,
+        chordWidth = 0.04,
+        mode_dur = 750,
+        firstSlide = 2500,
+        slideSpeed = 7500
 
   var margins = { top: 0, left: 150, right: 50, bottom: 0 }
 
@@ -240,10 +237,17 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     }
   }
 
+/*
   research_g.call(update_chord, research_matrix, pies.department)
   teaching_g.call(update_chord, teaching_matrix, pies.department)
 
   listeners([research_g, teaching_g])
+*/
+
+  research_g.append('rect')
+    .attr('width', width / 2)
+    .attr('height', height)
+    .fill('yellow')
 
   // start off moving into alphabetical order
 
@@ -273,47 +277,12 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     order(val)
   })
 
-/*
-
-  function add_nodes(elem) {
-    elem = elem.selectAll("g")
-       .data(dept_names)
-      .enter()
-       .append("g")
-       .attr("class", "dept")
-
-    elem.append("text")
-      .text( (d) => d )
-
-    elem.append("path")
-  }
-
-  var nodes1 = g.append("g").call(add_nodes)
-  var nodes2 = g.append("g").call(add_nodes)
-
-
-  // render different views of data
-
-  function render_common() {
-    svg.attr("width", width + margins.left + margins.right)
-       .attr("height", height + margins.top + margins.bottom)
-  }
-
-  function render_matrix() {
-    render_common()
-  }
-
-  function render_chords() {
-    render_common()
-  }
+  // select current view
 
   var render = {
-    matrix: render_matrix,
-    chords: render_chords
+    chord: function() {},
+    matrix: function() {}
   }
-
-
-  // select current view
 
   function show(d) {
     d3.selectAll("#viz li")
@@ -341,7 +310,10 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     innerRadius = Math.min(width / 2.0, height) * .41
     outerRadius = innerRadius * 1.05
     chordRadius = innerRadius * 0.99
-    labelRadius = innerRadius * 1.1
+    labelRadius = innerRadius * 1.15
+
+    svg.attr("width", width)
+       .attr("height", height)
   }
 
   window.onresize = function() {
@@ -353,12 +325,10 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   }
 
 
-  // initial state
+  // initial view
 
   relayout(window.innerWidth)
   show(d3.keys(render)[0])
-
-  */
 
 })
 
