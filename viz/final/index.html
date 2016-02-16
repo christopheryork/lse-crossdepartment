@@ -63,10 +63,16 @@ svg text::selection {
   -webkit-touch-callout: none; /* Disable Android and iOS callouts*/
 }
 
+path {
+  stroke-width: 0.5;
+  stroke-opacity: 0.5;
+  stroke: white;
+}
+
 </style>
 <body>
 
-<h1>Trans<!-- Cross-Departmental Research and Teaching at the LSE--></h1>
+<h1>Cross-Departmental Research and Teaching at the LSE</h1>
 
 <ul id="viz" class="disable-selection">
 </ul>
@@ -82,7 +88,7 @@ svg text::selection {
     <br/>
   </dd>
 </dl>
-<label class="toggle"><input type="checkbox" id="cbox" value="second_checkbox">&nbsp;Details</label>
+<!-- <label class="toggle"><input type="checkbox" id="cbox" value="second_checkbox">&nbsp;Details</label> -->
 </form>
 <script src="../js/d3.min.js"></script>
 <script src="../js/queue.min.js"></script>
