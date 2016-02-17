@@ -264,7 +264,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       node.exit().remove()          // never actually used
 
       var node_g = node.enter().append("g")
-          .attr("class", (d,i) => "dept dept_" + i + " no_advance")
+          .attr("class", (d) => "dept no_advance")
 
       node_g.append("path")
         .attr("fill", (d,i) => fill(i))
@@ -285,7 +285,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       trans.select("text")
         .attr("transform", (d) => "translate(" + label_arc.centroid(d) + ")" )
         .attr("text-anchor", (d) => arc_center(d, chordWidth).startAngle < Math.PI ? "start" : "end")
-        .text( (d, i) => dept_names[i])
+        .text( (d, i) => trim(dept_names[i], 27))
 
       // transition links (chords)
 
@@ -392,6 +392,10 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
 
 // Utility functions
+
+function trim(s, n) {
+  return (s.length > n) ? (s.slice(0,n-3)+"...") : s
+}
 
 function constant_matrix(n, c) {
   c = c || 0.0
