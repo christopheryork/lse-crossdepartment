@@ -9,7 +9,7 @@
 // This file must be pre-processed for Safari, as it uses arrow functions.
 
 // TODO
-//   - chord colors during selection should be by *opposite* dept color
+//   - chord colors during selection should be by *opposite* dept color   DONE
 //   - relayout on resize of window                                       DONE
 //   - each view in a separate group, fade in on select
 //   - move through modes on a timer                                      DONE
@@ -210,6 +210,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     var chord = d3.svg.chord()
       .radius(chordRadius)
 
+    var dominant_arc = (d) => d3.min([d.source_index, d.target_index])
+    var linked_to = (d, i) => d.source_index === i || d.target_index === i
+
     function arc_center(d, width) {
       width = width || 0.1
       var c = d3.mean([d.startAngle, d.endAngle]),
@@ -247,8 +250,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       links:      pie.sort(sortsum).value(sum)( matrix_add(research_matrix, teaching_matrix) ),
       emphasis:   pie.sort(sortsum).value(sum)( matrix_subtract(research_matrix, teaching_matrix) )
     }
-
-    console.log(JSON.stringify(layouts.links))
 
     function update(g, data, node_positions) {
 
@@ -300,7 +301,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       link.enter()
         .append("path")
           .attr("class", "link")
-          .attr("fill", (d) => fill(d3.min([d.source_index, d.target_index])))
+          .attr("fill", (d) => fill(dominant_arc(d)))
           .attr("opacity", 0)
 
       link.transition()
@@ -327,7 +328,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
           // collect list of linked departments
           var affiliated = d3.set()
           g.selectAll(".link")
-            .filter( (d) => d.source_index === i0 || d.target_index === i0 )
+            .filter( (d) => linked_to(d, i0) )
             .each( (d) => { affiliated.add(d.source_index); affiliated.add(d.target_index) })
 
           // transition graph
@@ -335,8 +336,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
           trans.selectAll(".dept text")
             .attr("opacity", (d,i) => affiliated.has(i) || i === i0 ? 1 : 0)
           trans.selectAll(".link")
-            .attr("opacity", (d,i) => d.source_index === i0 || d.target_index === i0 ? 1 : 0.05)
-
+            .attr("opacity", (d,i) => linked_to(d, i0) ? 1 : 0.05)
+            .attr("fill", (d) => linked_to(d, i0) ? fill(i0) : fill(dominant_arc(d, i0)) )
         })
       }
 
@@ -344,6 +345,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         elems.forEach( (g) => {
           var trans = g.transition()
           trans.selectAll(".link")
+            .attr("fill", (d) => fill(dominant_arc(d)))
             .attr("opacity", 1)
           trans.selectAll(".dept text")
             .attr("opacity", 0)
