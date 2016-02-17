@@ -121,13 +121,24 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   // render complete tree of components
 
   var render = {
-    chord: render_dual(svg_g)
+    chord: render_dual(),
+    matrix: render_matrix()
   }
 
   function render_all() {
     render_viz_selector(cur_viz)
     render_order(cur_order)
-    render[cur_viz](cur_order)
+
+    var viz = svg_g.selectAll(".viz")
+      .data(d3.keys(render))
+
+    viz.enter().append("g")
+      .attr("class", "viz")
+
+    viz.attr("visibility", (d) => d === cur_viz ? "visible" : "hidden")
+
+    viz.filter( (d) => d === cur_viz )
+       .call(render[cur_viz], cur_order)
   }
 
 
@@ -185,7 +196,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   // dual-chord viz
 
-  function render_dual(g) {
+  function render_dual() {
 
     var innerRadius, outerRadius, chordRadius, labelRadius
 
@@ -195,9 +206,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     var fill = d3.scale.category20c()
       .domain(d3.range(0, n))
-
-    var research_g = g.append("g")
-    var teaching_g = g.append("g")
 
     var arc = d3.svg.arc()
       .innerRadius(innerRadius)
@@ -251,10 +259,10 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       emphasis:   pie.sort(sortsum).value(sum)( matrix_subtract(research_matrix, teaching_matrix) )
     }
 
-    function update(g, data, node_positions) {
+    function update(g, order) {
 
       // update chords layout
-      var link_info = calc_links(data, node_positions)
+      var node_positions = layouts[order]
 
       // transition nodes (department arcs)
 
@@ -290,7 +298,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       // transition links (chords)
 
       var link = g.selectAll(".link")
-          .data(link_info, (d) => [d.source_index, d.target_index].join("x"))
+          .data((matrix) => calc_links(matrix, node_positions),
+                (d) => [d.source_index, d.target_index].join("x"))
 
       link.exit()
         .transition()
@@ -314,51 +323,45 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
           })
     }
 
-    function install_focus(elems) {
+    function focus(g, d0, i0) {
+      // collect list of linked departments
+      var affiliated = d3.set()
+      g.selectAll(".link")
+        .filter( (d) => linked_to(d, i0) )
+        .each( (d) => { affiliated.add(d.source_index); affiliated.add(d.target_index) })
 
-      elems.forEach( (g) => {
-        g.selectAll(".dept")
-          .on("mouseenter", focus)
-          .on("mouseout", defocus)
-      })
-
-      function focus(d0,i0) {
-        elems.forEach( (g) => {
-
-          // collect list of linked departments
-          var affiliated = d3.set()
-          g.selectAll(".link")
-            .filter( (d) => linked_to(d, i0) )
-            .each( (d) => { affiliated.add(d.source_index); affiliated.add(d.target_index) })
-
-          // transition graph
-          var trans = g.transition()
-          trans.selectAll(".dept text")
-            .attr("opacity", (d,i) => affiliated.has(i) || i === i0 ? 1 : 0)
-          trans.selectAll(".link")
-            .attr("opacity", (d,i) => linked_to(d, i0) ? 1 : 0.05)
-            .attr("fill", (d) => linked_to(d, i0) ? fill(i0) : fill(dominant_arc(d, i0)) )
-        })
-      }
-
-      function defocus() {
-        elems.forEach( (g) => {
-          var trans = g.transition()
-          trans.selectAll(".link")
-            .attr("fill", (d) => fill(dominant_arc(d)))
-            .attr("opacity", 1)
-          trans.selectAll(".dept text")
-            .attr("opacity", 0)
-        })
-      }
+      // transition graph
+      var trans = g.transition()
+      trans.selectAll(".dept text")
+        .attr("opacity", (d,i) => affiliated.has(i) || i === i0 ? 1 : 0)
+      trans.selectAll(".link")
+        .attr("opacity", (d,i) => linked_to(d, i0) ? 1 : 0.05)
+        .attr("fill", (d) => linked_to(d, i0) ? fill(i0) : fill(dominant_arc(d, i0)) )
     }
 
-    var chart = function(order) {
-      research_g.call(update, research_matrix, layouts[order])
-      teaching_g.call(update, teaching_matrix, layouts[order])
+    function defocus() {
+      var trans = d3.select(this).transition()
+      trans.selectAll(".link")
+        .attr("fill", (d) => fill(dominant_arc(d)))
+        .attr("opacity", 1)
+      trans.selectAll(".dept text")
+        .attr("opacity", 0)
+    }
 
-      // TODO.  actually only needs to be done first time
-      install_focus([research_g, teaching_g])
+    var chart = function(g, order) {
+      var chord = g.selectAll(".chord")
+        .data([research_matrix, teaching_matrix])
+
+      chord.enter().append("g")
+        .attr("class", "chord")
+
+      chord.attr("transform", (d,i) => "translate(" + (labelRadius * 2 * i + labelRadius) + "," + labelRadius + ")")
+           .call(update, order)
+
+      var depts = chord.selectAll(".dept")
+
+      depts.on("mouseenter", focus.bind(null, chord))
+           .on("mouseout", defocus)
     }
 
     chart.relayout = function() {
@@ -366,9 +369,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       outerRadius = innerRadius * 1.05
       chordRadius = innerRadius * 0.99
       labelRadius = innerRadius * 1.15
-
-      research_g.attr("transform", "translate(" + labelRadius + "," + labelRadius + ")")
-      teaching_g.attr("transform", "translate(" + (labelRadius * 3) + "," + labelRadius + ")")
 
       arc.innerRadius(innerRadius)
          .outerRadius(outerRadius)
@@ -383,7 +383,26 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   }
 
 
-  // initial appearance
+  function render_matrix() {
+
+    var chart = function(g, order) {
+      var elems = g.selectAll("text").data([order])
+
+      elems.enter().append("text")
+
+      elems.attr("x", width / 2)
+           .attr("y", height / 2)
+           .text( (d) => d )
+    }
+
+    chart.relayout = function () {
+    }
+
+    return chart
+  }
+
+
+  // initial layout and first render
 
   relayout(window.innerWidth)
   show('chord', 'department')
