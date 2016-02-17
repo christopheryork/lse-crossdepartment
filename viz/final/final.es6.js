@@ -2,7 +2,7 @@
 // Cross-Departmental Research and Teaching DV
 //
 // (c) Christopher York 2016
-//     Communications
+//     Communications Division
 //     London School of Economics
 //
 
@@ -14,7 +14,7 @@
 //   - each view in a separate group, fade in on select
 //   - move through modes on a timer                                      DONE
 //   - shouldn't advance modes during hover on a department
-//   - faculty sorting for dual chord
+//   - faculty sorting for dual chord                                     DONE
 
 queue().defer(d3.csv, "../data-6.1,6.3.csv")
        .defer(d3.csv, "../data-6.2.csv")
@@ -36,6 +36,12 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   var td2 = teaching.map( (d) => d.department2 )
   var dept_names = d3.set([].concat(rd1).concat(rd2).concat(td1).concat(td2)).values()
   var n = dept_names.length
+
+
+  // extract faculty counts per department
+
+  var faculty = d3.range(n).map( () => 0)
+  depts.forEach( (d) => faculty[dept_names.indexOf(d.department)] = d.faculty)
 
 
   // prepare the data matrices
@@ -225,16 +231,17 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     var pie = d3.layout.pie()
       .padAngle(padAngle)
-      .value(sum)
 
-    var sortsum = (a,b) => d3.descending(sum(a),sum(b))
+    var sortsum = (a,b) => d3.descending( sum(a), sum(b) )
 
     var layouts = {
-      department: pie.sort(null)(constant_matrix(n, 1)),
-      faculty:    pie.sort(sortsum)(constant_matrix(n, 1)),
-      links:      pie.sort(sortsum)( matrix_add(research_matrix, teaching_matrix) ),
-      emphasis:   pie.sort(sortsum)( matrix_subtract(research_matrix, teaching_matrix) )
+      department: pie.sort(null).value(Number)( d3.range(0,n).map(d3.functor(1)) ),
+      faculty:    pie.sort(d3.ascending).value(Number)( faculty.map( (d) => d || 0) ),
+      links:      pie.sort(sortsum).value(sum)( matrix_add(research_matrix, teaching_matrix) ),
+      emphasis:   pie.sort(sortsum).value(sum)( matrix_subtract(research_matrix, teaching_matrix) )
     }
+
+    console.log(JSON.stringify(layouts.links))
 
     function update(g, data, node_positions) {
 
@@ -339,7 +346,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     var chart = function(order) {
       research_g.call(update, research_matrix, layouts[order])
-      teaching_g.call(update, teaching_matrix, layouts[ochords rder])
+      teaching_g.call(update, teaching_matrix, layouts[order])
 
       // TODO.  actually only needs to be done first time
       install_focus([research_g, teaching_g])
