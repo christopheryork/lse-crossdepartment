@@ -10,11 +10,12 @@
 
 // TODO
 //   - chord colors during selection should be by *opposite* dept color
-//   - relayout on resize of window
+//   - relayout on resize of window                                       DONE
 //   - each view in a separate group, fade in on select
 //   - move through modes on a timer                                      DONE
-//   - shouldn't advance modes during hover on a department
+//   - shouldn't advance modes during hover on a department               DONE
 //   - faculty sorting for dual chord                                     DONE
+
 
 queue().defer(d3.csv, "../data-6.1,6.3.csv")
        .defer(d3.csv, "../data-6.2.csv")
@@ -96,7 +97,13 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     var i = orders.indexOf(cur_order)
     var next_order = orders[ (i + 1) % orders.length ]
 
-    show(cur_viz, next_order)
+    var hover_count = 0
+    d3.select(".no_advance:hover").each( () => ++hover_count )
+
+    if(hover_count === 0) {
+      show(cur_viz, next_order)
+    }
+
     timeout = setTimeout(advance, slideSpeed)
   }
 
@@ -206,7 +213,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     function arc_center(d, width) {
       width = width || 0.1
       var c = d3.mean([d.startAngle, d.endAngle]),
-          s = d3.max([d.startAngle, c - width])
+          s = d3.max([d.startAngle, c - width]),
           t = d3.min([c + width, d.endAngle])
 
       return { startAngle: s, endAngle: t }
@@ -256,7 +263,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       node.exit().remove()          // never actually used
 
       var node_g = node.enter().append("g")
-          .attr("class", (d,i) => "dept dept_" + i)
+          .attr("class", (d,i) => "dept dept_" + i + " no_advance")
 
       node_g.append("path")
         .attr("fill", (d,i) => fill(i))

@@ -2,7 +2,7 @@
 // Cross-Departmental Research and Teaching DV
 //
 // (c) Christopher York 2016
-//     Communications
+//     Communications Division
 //     London School of Economics
 //
 
@@ -14,7 +14,7 @@
 //   - each view in a separate group, fade in on select
 //   - move through modes on a timer                                      DONE
 //   - shouldn't advance modes during hover on a department
-//   - faculty sorting for dual chord
+//   - faculty sorting for dual chord                                     DONE
 
 "use strict";
 
@@ -49,6 +49,15 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
   });
   var dept_names = d3.set([].concat(rd1).concat(rd2).concat(td1).concat(td2)).values();
   var n = dept_names.length;
+
+  // extract faculty counts per department
+
+  var faculty = d3.range(n).map(function () {
+    return 0;
+  });
+  depts.forEach(function (d) {
+    return faculty[dept_names.indexOf(d.department)] = d.faculty;
+  });
 
   // prepare the data matrices
 
@@ -88,9 +97,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
   var width, height;
 
   var margins = { top: 0, left: 150, right: 50, bottom: 0 },
-      firstSlide = 2500,
-      slideSpeed = 7500,
-      orders = ['department', 'links', 'emphasis', 'faculty'];
+      firstSlide = 200,
+      // 2500,
+  slideSpeed = 1000,
+      // 7500,
+  orders = ['department', 'links', 'emphasis', 'faculty'];
 
   var svg = d3.select("body").append("svg");
 
@@ -104,11 +115,19 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     var i = orders.indexOf(cur_order);
     var next_order = orders[(i + 1) % orders.length];
 
-    show(cur_viz, next_order);
+    var hover_count = 0;
+    d3.select(".no_advance:hover").each(function () {
+      return ++hover_count;
+    });
+
+    if (hover_count === 0) {
+      show(cur_viz, next_order);
+    }
+
     timeout = setTimeout(advance, slideSpeed);
   }
 
-  // render an entire view
+  // transition application state
 
   function show(viz, order) {
     cur_viz = viz;
@@ -116,6 +135,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
     render_all();
   }
+
+  // render complete tree of components
 
   var render = {
     chord: render_dual(svg_g)
@@ -127,7 +148,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     render[cur_viz](cur_order);
   }
 
-  // layout
+  // layout entire application
 
   function relayout(minWidth) {
     width = minWidth - margins.right;
@@ -136,7 +157,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     svg.attr("width", width).attr("height", height);
 
     d3.keys(render).forEach(function (key) {
-      return render[key].relayout();
+      render[key].relayout();
     });
   }
 
@@ -178,7 +199,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   // dual-chord viz
 
-  function render_dual(svg) {
+  function render_dual(g) {
 
     var innerRadius, outerRadius, chordRadius, labelRadius;
 
@@ -188,8 +209,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
     var fill = d3.scale.category20c().domain(d3.range(0, n));
 
-    var research_g = svg.append("g");
-    var teaching_g = svg.append("g");
+    var research_g = g.append("g");
+    var teaching_g = g.append("g");
 
     var arc = d3.svg.arc().innerRadius(innerRadius).outerRadius(outerRadius);
 
@@ -200,8 +221,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     function arc_center(d, width) {
       width = width || 0.1;
       var c = d3.mean([d.startAngle, d.endAngle]),
-          s = d3.max([d.startAngle, c - width]);
-      t = d3.min([c + width, d.endAngle]);
+          s = d3.max([d.startAngle, c - width]),
+          t = d3.min([c + width, d.endAngle]);
 
       return { startAngle: s, endAngle: t };
     }
@@ -223,32 +244,36 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       return links;
     }
 
-    var pie = d3.layout.pie().padAngle(padAngle).value(sum);
+    var pie = d3.layout.pie().padAngle(padAngle);
 
     var sortsum = function sortsum(a, b) {
       return d3.descending(sum(a), sum(b));
     };
 
-    var pies = {
-      department: pie.sort(null)(constant_matrix(n, 1)),
-      faculty: pie.sort(sortsum)(constant_matrix(n, 1)),
-      links: pie.sort(sortsum)(matrix_add(research_matrix, teaching_matrix)),
-      emphasis: pie.sort(sortsum)(matrix_subtract(research_matrix, teaching_matrix))
+    var layouts = {
+      department: pie.sort(null).value(Number)(d3.range(0, n).map(d3.functor(1))),
+      faculty: pie.sort(d3.ascending).value(Number)(faculty.map(function (d) {
+        return d || 0;
+      })),
+      links: pie.sort(sortsum).value(sum)(matrix_add(research_matrix, teaching_matrix)),
+      emphasis: pie.sort(sortsum).value(sum)(matrix_subtract(research_matrix, teaching_matrix))
     };
 
-    function update_chord(g, data, node_positions) {
+    console.log(JSON.stringify(layouts.links));
 
-      // update layout
+    function update(g, data, node_positions) {
+
+      // update chords layout
       var link_info = calc_links(data, node_positions);
 
-      // transition nodes
+      // transition nodes (department arcs)
 
       var node = g.selectAll(".dept").data(node_positions);
 
-      node.exit().remove();
+      node.exit().remove(); // never actually used
 
       var node_g = node.enter().append("g").attr("class", function (d, i) {
-        return "dept dept_" + i;
+        return "dept dept_" + i + " no_advance";
       });
 
       node_g.append("path").attr("fill", function (d, i) {
@@ -276,7 +301,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return dept_names[i];
       });
 
-      // transition links
+      // transition links (chords)
 
       var link = g.selectAll(".link").data(link_info, function (d) {
         return [d.source_index, d.target_index].join("x");
@@ -298,7 +323,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       });
     }
 
-    function listeners(elems) {
+    function install_focus(elems) {
 
       elems.forEach(function (g) {
         g.selectAll(".dept").on("mouseenter", focus).on("mouseout", defocus);
@@ -335,15 +360,15 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       }
     }
 
-    var draw = function draw(order) {
-      research_g.call(update_chord, research_matrix, pies[order]);
-      teaching_g.call(update_chord, teaching_matrix, pies[order]);
+    var chart = function chart(order) {
+      research_g.call(update, research_matrix, layouts[order]);
+      teaching_g.call(update, teaching_matrix, layouts[order]);
 
       // TODO.  actually only needs to be done first time
-      listeners([research_g, teaching_g]);
+      install_focus([research_g, teaching_g]);
     };
 
-    draw.relayout = function () {
+    chart.relayout = function () {
       innerRadius = Math.min((width - 100) / 2.0, height) * .41;
       outerRadius = innerRadius * 1.05;
       chordRadius = innerRadius * 0.99;
@@ -359,7 +384,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       chord.radius(chordRadius);
     };
 
-    return draw;
+    return chart;
   }
 
   // initial appearance
