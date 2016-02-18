@@ -1,9 +1,11 @@
 //
 // Cross-Departmental Research and Teaching DV
 //
-// (c) Christopher York 2016
+// (c) London School of Economics 2016
+//
+//     Christopher York
 //     Communications Division
-//     London School of Economics
+//     C.York@lse.ac.uk
 //
 
 // This file must be pre-processed for Safari, as it uses arrow functions.
@@ -91,7 +93,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   // timer cycling through available orders
 
-  var timeout = setTimeout(advance, firstSlide)
+  var timeout
 
   function advance() {
     var i = orders.indexOf(cur_order)
@@ -135,10 +137,12 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     viz.enter().append("g")
       .attr("class", "viz")
 
-    viz.attr("visibility", (d) => d === cur_viz ? "visible" : "hidden")
-
-    viz.filter( (d) => d === cur_viz )
+    viz.filter( (d) => d === cur_viz)
        .call(render[cur_viz], cur_order)
+
+    viz.transition()
+       .duration(500)
+       .attr("opacity", (d) => d === cur_viz ? 1 : 0)
   }
 
 
@@ -151,8 +155,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     svg.attr("width", width)
        .attr("height", height)
 
-    d3.keys(render).forEach( (key) => {
-      render[key].relayout()
+    d3.keys(render).forEach( (viz) => {
+      render[viz].relayout()
     })
   }
 
@@ -172,7 +176,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     viz_li.enter().append("li")
         .attr("id", (d) => d)
         .text((d) => d)
-       .on("click", show)
+       .on("click", (d) => show(d, cur_order))
 
     viz_li.classed("selected", (d) => d === viz)
   }
@@ -188,8 +192,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     d3.select("#order").on("change", function(d) {
       var order = d3.select('#order :checked').node().value
-      show(cur_viz, order)
       clearTimeout(timeout)
+      show(cur_viz, order)
     })
   }
 
@@ -385,17 +389,206 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   function render_matrix() {
 
+    var legend_cell = 7,
+        legend_packing = 1,
+        cell_packing = 4, // should be ceiling(sqrt(max count of links))
+        cell_padding = 1,
+        stroke_width = 1.0,
+        trim_value = 27,
+        research_color_1 = "red",
+        research_color_2 = "yellow",
+        neutral_color = "gray",
+        empty_color = "#dadad9",
+        teaching_color = "#35b7e5"
+
+    var points = d3.merge(d3.range(n).map( (i) => d3.range(n).map( (j) => {
+      return { i: i, j: j}
+    })))
+
+    var links_matrix = matrix_add(research_matrix, teaching_matrix),
+        links_sum = links_matrix.map(sum),
+        balance_matrix = matrix_subtract(research_matrix, teaching_matrix),
+        balance_sum = balance_matrix.map(sum)
+
+    var orders = {
+      department: d3.range(n).sort( (a, b) => d3.ascending(dept_names[a], dept_names[b])),
+      faculty: d3.range(n).sort( (a, b) => faculty[b] - faculty[a] ),
+      links: d3.range(n).sort( (a, b) => links_sum[b] - links_sum[a] ),
+      emphasis: d3.range(n).sort( (a, b) => balance_sum[b] - balance_sum[a])
+    }
+
+    var scale = d3.scale.ordinal()
+
+    var colorscale = d3.scale.linear()
+      .domain([-9, -2, 0, 4.5, 9])
+      .range([teaching_color, teaching_color, neutral_color, research_color_1, research_color_2])
+
+    var sizescale = d3.scale.linear()
+      .domain([0, 11])  // should be max count of links
+
+    var csd = colorscale.domain()
+
     var chart = function(g, order) {
-      var elems = g.selectAll("text").data([order])
 
-      elems.enter().append("text")
+      scale.domain(orders[order])
 
-      elems.attr("x", width / 2)
-           .attr("y", height / 2)
-           .text( (d) => d )
+      sizescale.range([3, scale.rangeBand()])
+
+      g.attr("transform", "translate(0,100)")
+
+      // cells (links)
+
+      var cell = g.selectAll(".cell")
+          .data(points)
+
+      var cell_enter = cell.enter()
+          .append("g")
+            .attr("class", (d) => "cell x_" + to_class(dept_names[d.i]) + " y_" + to_class(dept_names[d.j]) + " no_advance")
+            .attr("transform", (d) => "translate(" + scale(d.i) + "," + scale(d.j) + ")" )
+            .attr("fill", "transparent")
+
+      cell_enter.append("title")
+        .text((d) => dept_names[d.i] + " & " + dept_names[d.j] +
+                   "\nResearch: " + research_matrix[d.i][d.j] +
+                   ", Teaching: " + teaching_matrix[d.i][d.j])
+
+      cell_enter.append("rect")
+        .attr("class", "background")
+        .attr("rx", 1)
+        .attr("ry", 1)
+        .attr("stroke", "none")
+        .attr("width", scale.rangeBand())
+        .attr("height", scale.rangeBand())
+        .attr("opacity", 0.2)
+        .attr("fill", "none")
+
+      cell_enter.append("rect")
+        .attr("class", "sum")
+        .attr("rx", 1)
+        .attr("ry", 1)
+
+      cell_enter.selectAll(".sum")
+          .attr("stroke", "none")
+          .attr("x", (d) => scale.rangeBand() / 2.0 - sizescale( links_matrix[d.i][d.j] ) / 2.0)
+          .attr("y", (d) => scale.rangeBand() / 2.0 - sizescale( links_matrix[d.i][d.j] ) / 2.0)
+          .attr("width", (d) => sizescale( links_matrix[d.i][d.j] ))
+          .attr("height", (d) => sizescale( links_matrix[d.i][d.j] ))
+          .attr("fill", (d) => {
+            return links_matrix[d.i][d.j] > 0 ? colorscale(balance_matrix[d.i][d.j]) : empty_color
+          })
+          .attr("opacity", 1.0)
+
+      // rules (nodes)
+
+      var xlabs = g.selectAll(".x.labels")
+        .data(dept_names)
+       .enter().append("g")
+        .attr("class", "x labels no_advance")
+        .attr("transform", (d, i) => "translate(" + (scale(i) + 5) + ",-15)rotate(-45)")
+
+      xlabs.append("rect")
+        .attr("fill", "transparent")
+        .attr("width", 200)
+        .attr("height", scale.rangeBand())
+
+      xlabs.append("text")
+        .attr("class", (d, i) => "dept" + i)
+        .attr("dominant-baseline", "middle")
+        .attr("dy", scale.rangeBand() / 2.0)
+        .text( (d) => trim(d, trim_value))
+        .attr("fill", "black")
+
+      xlabs.call(highlight.bind(null, "x_"))
+
+      var ylabs = g.selectAll(".y.labels")
+        .data(dept_names)
+       .enter().append("g")
+        .attr("class", "y labels no_advance")
+        .attr("transform", (d,i) => "translate(" + (width - margins.right - margins.left) + "," + scale(i) + ")")
+
+      ylabs.append("rect")
+        .attr("fill", "transparent")
+        .attr("width", 200)
+        .attr("height", scale.rangeBand())
+
+      ylabs.append("text")
+        .attr("class", (d,i) => "dept" + i)
+        .attr("dominant-baseline", "middle")
+        .attr("dy", scale.rangeBand() / 2.0)
+        .text( (d) => trim(d, trim_value))
+        .attr("fill", "black")
+
+      ylabs.call(highlight.bind(null, "y_"))
+
+      // legends
+
+      var tick = g.selectAll(".tick")
+          .data(d3.range(d3.min(csd), d3.max(csd)))
+        .enter().append("g")
+          .attr("class", "tick")
+          .attr("transform", (d,i) => "translate(-150," + (50 + (legend_cell + legend_packing) * i) +  ")")
+
+      tick.append("rect")
+            .attr("width", legend_cell)
+            .attr("height", legend_cell)
+            .attr("fill", (d) => colorscale(d))
+
+      tick.append("g")
+        .append("text")
+          .attr("dominant-baseline", "hanging")
+          .attr("dx", legend_cell * 1.5)
+          .attr("fill", "black")
+          .text( (d, i) => i === 0 ? "more teaching links" : d === 0 ? "balanced" : d === d3.max(csd) - 1 ? "more research links" : "")
+
+      var ssd = sizescale.domain()
+      var tick2 = g.selectAll(".tick2")
+         .data(d3.range(ssd[0], ssd[1], 2))
+        .enter().append("g")
+         .attr("class", "tick2")
+         .attr("transform", (d,i) => "translate(-150," + (scale.rangeBand() * i + 200) + ")")
+
+      tick2.append("rect")
+         .attr("x", (d,i) => scale.rangeBand() / 2.0 - sizescale(i) / 2.0)
+         .attr("y", (d,i) => scale.rangeBand() / 2.0 - sizescale(i) / 2.0)
+         .attr("width", (d,i) => sizescale(i) )
+         .attr("height", (d,i) => sizescale(i) )
+         .attr("fill", neutral_color)
+
+      tick2.append("text")
+        .attr("dx", scale.rangeBand() * 1.2)
+        .attr("dy", scale.rangeBand() / 2.0)
+        .attr("dominant-baseline", "middle")
+        .text( (d, i) => d + (i === 0 ? " total links" : ""))
+
+      // animation
+
+      var trans = g.transition().duration(2500)
+
+      trans.selectAll(".x.labels")
+          .delay(function(d, i) { return scale(i) * 4; })
+          .attr("transform", (d, i) => "translate(" + (scale(i) + 5) + ",-15)rotate(-45)")
+
+      trans.selectAll(".cell")
+          .delay(function(d) { return scale(d.i) * 4; })
+          .attr("transform", (d) => "translate(" + scale(d.i) + "," + scale(d.j) + ")" )
+
+      trans.selectAll(".y.labels")
+          .delay(function(d, i) { return scale(i) * 4; })
+          .attr("transform", (d,i) => "translate(" + (width - margins.right - margins.left) + "," + scale(i) + ")")
+
+      // behavior
+
+      function highlight(prefix, sel) {
+        sel.on("mouseover", (d) => {
+          d3.selectAll(".cell.selected").classed("selected", false)
+          d3.selectAll(".cell." + prefix + to_class(d)).classed("selected", true)
+        })
+      }
+
     }
 
     chart.relayout = function () {
+      scale.rangeRoundBands([0, width - margins.left - margins.right], 0.1)
     }
 
     return chart
@@ -406,6 +599,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   relayout(window.innerWidth)
   show('chord', 'department')
+  timeout = setTimeout(advance, firstSlide)
 
 })
 
@@ -415,6 +609,12 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 function trim(s, n) {
   return (s.length > n) ? (s.slice(0,n-3)+"...") : s
 }
+
+function to_class(s) {
+  return s.toLowerCase().replace(/\W/g, '_')
+}
+
+// Matrix manipulation
 
 function constant_matrix(n, c) {
   c = c || 0.0
