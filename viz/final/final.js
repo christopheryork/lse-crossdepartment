@@ -90,26 +90,33 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
   var research_matrix = populate(research, constant_matrix(n));
   var teaching_matrix = populate(teaching, constant_matrix(n));
 
+  var links_matrix = matrix_add(research_matrix, teaching_matrix);
+  var links_sum = links_matrix.map(sum);
+  var balance_matrix = matrix_subtract(research_matrix, teaching_matrix);
+  var balance_sum = balance_matrix.map(sum);
+
   // application state
 
-  var cur_viz, cur_order;
+  var cur_viz = undefined,
+      cur_order = undefined;
 
   // cross-visualization configuration
 
-  var width, height;
+  var margins = { top: 0, left: 150, right: 50, bottom: 0 };
+  var firstSlide = 2500;
+  var slideSpeed = 7500;
+  var orders = ['department', 'links', 'emphasis', 'faculty'];
 
-  var margins = { top: 0, left: 150, right: 50, bottom: 0 },
-      firstSlide = 2500,
-      slideSpeed = 7500,
-      orders = ['department', 'links', 'emphasis', 'faculty'];
+  var width = undefined,
+      height = undefined;
 
   var svg = d3.select("body").append("svg");
 
   var svg_g = svg.append("g").attr("transform", "translate(" + margins.left + "," + margins.top + ")");
 
-  // timer cycling through available orders
+  // timer cycling through orders
 
-  var timeout;
+  var timeout = undefined;
 
   function advance() {
     var i = orders.indexOf(cur_order);
@@ -215,11 +222,14 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   function render_dual() {
 
-    var innerRadius, outerRadius, chordRadius, labelRadius;
+    var innerRadius = undefined,
+        outerRadius = undefined,
+        chordRadius = undefined,
+        labelRadius = undefined;
 
-    var padAngle = 0.01,
-        chordWidth = 0.04,
-        mode_dur = 750;
+    var padAngle = 0.01;
+    var chordWidth = 0.04;
+    var mode_dur = 750;
 
     var fill = d3.scale.category20c().domain(d3.range(0, n));
 
@@ -236,14 +246,29 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       return d.source_index === i || d.target_index === i;
     };
 
-    function arc_center(d, width) {
+    var arc_center = function arc_center(d, width) {
       width = width || 0.1;
-      var c = d3.mean([d.startAngle, d.endAngle]),
-          s = d3.max([d.startAngle, c - width]),
-          t = d3.min([c + width, d.endAngle]);
+      var c = d3.mean([d.startAngle, d.endAngle]);
+      var s = d3.max([d.startAngle, c - width]);
+      var t = d3.min([c + width, d.endAngle]);
 
       return { startAngle: s, endAngle: t };
-    }
+    };
+
+    var pie = d3.layout.pie().padAngle(padAngle);
+
+    var sortsum = function sortsum(a, b) {
+      return d3.descending(sum(a), sum(b));
+    };
+
+    var layouts = {
+      department: pie.sort(null).value(Number)(d3.range(0, n).map(d3.functor(1))),
+      faculty: pie.sort(d3.ascending).value(Number)(faculty.map(function (d) {
+        return d || 0;
+      })),
+      links: pie.sort(sortsum).value(sum)(matrix_add(research_matrix, teaching_matrix)),
+      emphasis: pie.sort(sortsum).value(sum)(matrix_subtract(research_matrix, teaching_matrix))
+    };
 
     function calc_links(data, node_positions) {
       var links = [];
@@ -261,21 +286,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       }
       return links;
     }
-
-    var pie = d3.layout.pie().padAngle(padAngle);
-
-    var sortsum = function sortsum(a, b) {
-      return d3.descending(sum(a), sum(b));
-    };
-
-    var layouts = {
-      department: pie.sort(null).value(Number)(d3.range(0, n).map(d3.functor(1))),
-      faculty: pie.sort(d3.ascending).value(Number)(faculty.map(function (d) {
-        return d || 0;
-      })),
-      links: pie.sort(sortsum).value(sum)(matrix_add(research_matrix, teaching_matrix)),
-      emphasis: pie.sort(sortsum).value(sum)(matrix_subtract(research_matrix, teaching_matrix))
-    };
 
     function update(g, order) {
 
@@ -402,29 +412,23 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   function render_matrix() {
 
-    var legend_cell = 7,
-        legend_packing = 1,
-        cell_packing = 4,
-        // should be ceiling(sqrt(max count of links))
-    cell_padding = 1,
-        stroke_width = 1.0,
-        trim_value = 27,
-        research_color_1 = "red",
-        research_color_2 = "yellow",
-        neutral_color = "gray",
-        empty_color = "#dadad9",
-        teaching_color = "#35b7e5";
+    var legend_cell = 7;
+    var legend_packing = 1;
+    var cell_packing = 4; // should be ceiling(sqrt(max count of links))
+    var cell_padding = 1;
+    var stroke_width = 1.0;
+    var trim_value = 27;
+    var research_color_1 = "red";
+    var research_color_2 = "yellow";
+    var neutral_color = "gray";
+    var empty_color = "#dadad9";
+    var teaching_color = "#35b7e5";
 
     var points = d3.merge(d3.range(n).map(function (i) {
       return d3.range(n).map(function (j) {
         return { i: i, j: j };
       });
     }));
-
-    var links_matrix = matrix_add(research_matrix, teaching_matrix),
-        links_sum = links_matrix.map(sum),
-        balance_matrix = matrix_subtract(research_matrix, teaching_matrix),
-        balance_sum = balance_matrix.map(sum);
 
     var orders = {
       department: d3.range(n).sort(function (a, b) {
