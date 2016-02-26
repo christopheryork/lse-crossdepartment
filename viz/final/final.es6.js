@@ -13,10 +13,25 @@
 // TODO
 //   - chord colors during selection should be by *opposite* dept color   DONE
 //   - relayout on resize of window                                       DONE
-//   - each view in a separate group, fade in on select
+//   - each view in a separate group, fade in on select                   DONE
 //   - move through modes on a timer                                      DONE
 //   - shouldn't advance modes during hover on a department               DONE
 //   - faculty sorting for dual chord                                     DONE
+
+//   - non-directed graph, so chords should be gradient colored
+//   - problems mousing in and out of chords / out of sync                DONE
+//   - labels should only appear for local chords                         DONE
+//   - arcs should transition in a progressive fashion?
+//   - space for labels at top of chords                                  DONE
+//   - when a transition occurs during a hover, chords go out of order
+//   - put values next to departments
+//   - move viz selector into title line                                  DONE
+//   - add "explore the data" to title                                    DONE
+//   - add "research" & "teaching" titles to chord diagrams               DONE
+//   - rename "chord" & "matrix"                                          DONE
+//   - outer margins need adjusting
+
+//   - matrix needs to rescale after window resize
 
 "use strict";
 
@@ -74,6 +89,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   let balance_matrix = matrix_subtract(research_matrix, teaching_matrix)
   let balance_sum = balance_matrix.map(sum)
 
+
   // application state
 
   let cur_viz, cur_order
@@ -86,10 +102,23 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   const slideSpeed = 7500
   const orders = [ 'department', 'links', 'emphasis', 'faculty' ]
 
+
   let width, height
 
   let svg = d3.select("body")
     .append("svg")
+
+  svg.append('defs')
+    .append('marker')
+      .attr('id', 'markerCircle')
+      .attr('markerWidth', 3)
+      .attr('markerHeight', 3)
+      .attr('refX', 1.5)
+      .attr('refY', 1.5)
+    .append('circle')
+      .attr('r', 1.5)
+      .attr('cx', 1.5)
+      .attr('cy', 1.5)
 
   let svg_g = svg.append("g")
     .attr("transform", "translate(" + margins.left + "," + margins.top + ")")
@@ -126,6 +155,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   // render complete tree of components
 
+  const viz_names = {
+    chord: 'By Department',
+    matrix: 'All the Data'
+  }
+
   let render = {
     chord: render_dual(),
     matrix: render_matrix()
@@ -144,9 +178,10 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     viz.filter( (d) => d === cur_viz)
        .call(render[cur_viz], cur_order)
 
-    viz.transition()
-       .duration(500)
-       .attr("opacity", (d) => d === cur_viz ? 1 : 0)
+    viz.attr('visibility', (d) => d === cur_viz ? 'visible' : 'hidden')
+       .transition()
+         .duration(500)
+         .attr("opacity", (d) => d === cur_viz ? 1 : 0)
   }
 
 
@@ -173,13 +208,13 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   // viz selector
 
   function render_viz_selector(viz) {
-    let viz_li = d3.select("#viz")
+    let viz_li = d3.select("#viz ul")
        .selectAll("li")
       .data(d3.keys(render))
 
     viz_li.enter().append("li")
         .attr("id", (d) => d)
-        .text((d) => d)
+        .text((d) => viz_names[d])
        .on("click", (d) => show(d, cur_order))
 
     viz_li.classed("selected", (d) => d === viz)
@@ -208,9 +243,18 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     let innerRadius, outerRadius, chordRadius, labelRadius
 
+    const margins = { top: 80, left: 0, right: 0, bottom: 0 }
+
+    const τ = 2 * Math.PI
+    const pie_rotate = τ * 5 / 8          // when ordered, start in lower left corner so labels run downwards
+
     const padAngle = 0.01
     const chordWidth = 0.04
     const mode_dur = 750
+
+    const label_margin = 1.5
+    const label_padding = 5
+    const title_margin = 20
 
     let fill = d3.scale.category20c()
       .domain(d3.range(0, n))
@@ -239,6 +283,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     }
 
     let pie = d3.layout.pie()
+      .startAngle(pie_rotate)
+      .endAngle(τ + pie_rotate)
       .padAngle(padAngle)
 
     let sortsum = (a,b) => d3.descending( sum(a), sum(b) )
@@ -267,6 +313,130 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       return links
     }
 
+    const marker_circle_radius = 1.5
+
+    function relayout_labels(nodes) {
+
+      // add defs to svg header, if not already present
+      if(svg.select('#markerCircle').empty()) {
+        svg.append('defs')
+          .append('marker')
+            .attr('id', 'markerCircle')
+            .attr('markerWidth', marker_circle_radius * 2)
+            .attr('markerHeight', marker_circle_radius * 2)
+            .attr('refX', marker_circle_radius)
+            .attr('refY', marker_circle_radius)
+          .append('circle')
+            .attr('r', marker_circle_radius)
+            .attr('cx', marker_circle_radius)
+            .attr('cy', marker_circle_radius)
+      }
+
+      // constraint relaxing algorithm for label positions
+
+      const sign = (x) => x > 0 ? 1 : -1
+      const spacing = 2  // TODO change to "adjust"
+
+      // returns the upper-left point in the rectangle
+      // negative sizes indicate label's origin is on opposite side
+      function attach_point(point, size) {
+        let attach = point.slice()
+        attach[0] += Math.min(0, size[0])
+        attach[1] += Math.min(0, size[1])
+        return attach
+      }
+
+      function rect_intersect(point1, size1, point2, size2) {
+        let r1 = { x1: point1[0], y1: point1[1], x2: point1[0] + size1[0], y2: point1[1] + size1[1] }
+        let r2 = { x1: point2[0], y1: point2[1], x2: point2[0] + size2[0], y2: point2[1] + size2[1] }
+        let separate = /* left */  Math.max(r1.x1, r1.x2) + label_margin < Math.min(r2.x1, r2.x2) - label_margin ||
+                       /* above */ Math.max(r1.y1, r1.y2) + label_margin < Math.min(r2.y1, r2.y2) - label_margin ||
+                       /* right */ Math.min(r1.x1, r1.x2) - label_margin > Math.max(r2.x1, r2.x2) + label_margin ||
+                       /* below */ Math.min(r1.y1, r1.y2) - label_margin > Math.max(r2.y1, r2.y2) + label_margin
+        return !separate
+      }
+
+      // NB not a general solution to circle-rectangle intersection!
+      //    this approach requires the rectangle's longest side to be shorter than the circle's diameter
+      function circle_intersect(point, size, center, radius) {
+        let x1 = point[0], y1 = point[1], x2 = point[0] + size[0], y2 = point[1] + size[1]
+        let in_circle = (x,y) => Math.sqrt( Math.pow(x - center[0], 2) + Math.pow(y - center[1], 2) ) < radius
+
+        return in_circle(x1, y1) || in_circle(x1, y2) || in_circle(x2, y2) || in_circle(x2, y1)
+      }
+
+      let labels = nodes.select('text')
+
+      // unconventional use of D3: because bounding box isn't available until text node added to DOM,
+      // we do final updates of the layout inside D3 join
+      labels.each( function(d) {
+        let bbox = this.getBBox()
+        d.labelPosition = label_arc.centroid(d)
+
+        // Convention: positive label size values indicate origin in upper left corner
+        //             negative label size moves origin to opposite side
+        d.labelSize = [ bbox.width, bbox.height ]
+
+        // put in margin before or after label
+        d.labelSize[0] += label_padding
+
+        // adjust origin of label to match quadrant
+        d.labelSize[0] *= -sign(d.labelPosition[0])
+        d.labelSize[1] *= -sign(d.labelPosition[1])
+      })
+
+      // relax the label positions until they are not overlapping
+
+      // the following algorithm works for labels with origin in upper right; text-anchor, dx, dy etc will CANNOT be used on
+      // the <text> elements.
+
+      let relaxing
+
+      relaxing = true; while(relaxing) {
+        // move labels that overlap the circle (... could be done by direct calculation)
+        relaxing = false
+        nodes.each( (d0,i0) => {
+          if(circle_intersect(d0.labelPosition, d0.labelSize, [0,0], labelRadius)) {
+            d0.labelPosition[1] += sign(d0.labelPosition[1]) * spacing
+            relaxing = true
+          }
+        })
+      }
+
+      relaxing = true; while(relaxing) {
+        // move labels that overlap each other
+        relaxing = false
+        nodes.each( (d0,i0) => {
+          nodes.each( (d1,i1) => {
+            if(i0===i1) return
+            if(!rect_intersect(d0.labelPosition, d0.labelSize,
+                               d1.labelPosition, d1.labelSize)) return
+            // only nudge the outermost of the two labels
+            if(!(Math.abs(d0.labelPosition[0]) < Math.abs(d1.labelPosition[0]))) return
+            d1.labelPosition[1] += sign(d1.labelPosition[1]) * spacing
+            relaxing = true
+          })
+        })
+      }
+
+      labels
+        .attr('transform', (d) => 'translate(' + attach_point(d.labelPosition, d.labelSize) + ')')
+        .attr('dy', '0.9em') // cross-browser workaround approximating <text dominant-baseline="text-before-edge">...
+        .attr('dx', (d) => -label_padding * sign(d.labelPosition[0]))
+
+
+      // lines
+      let label_rule = (d) => {
+        let attach = d.labelPosition.slice()
+        attach[1] += d.labelSize[1] / 2
+        return [arc.centroid(d), label_arc.centroid(d), attach ]
+      }
+
+      nodes.select('polyline')
+        .attr('points', label_rule)
+
+    }
+
     function update(g, order) {
 
       // update chords layout
@@ -285,8 +455,12 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       node_g.append("path")
         .attr("fill", (d,i) => fill(i))
 
-      node_g.append("text")
+      let label_info = node_g.append("g")
+        .attr("class", "label_info")
         .attr("opacity", 0)
+      label_info.append('polyline')
+        .attr('marker-end', 'url(#markerCircle)')
+      label_info.append("text")
 
       let trans = node.transition()
         .duration(mode_dur)
@@ -298,10 +472,10 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
             return (t) => arc(interp(t))
           })
 
-      trans.select("text")
-        .attr("transform", (d) => "translate(" + label_arc.centroid(d) + ")" )
-        .attr("text-anchor", (d) => arc_center(d, chordWidth).startAngle < Math.PI ? "start" : "end")
+      node.select("text")
         .text( (d, i) => trim(dept_names[i], 27))
+
+      node.call(relayout_labels)
 
       // transition links (chords)
 
@@ -332,44 +506,90 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     }
 
     function focus(g, d0, i0) {
+
       // collect list of linked departments
       let affiliated = d3.set()
       g.selectAll(".link")
         .filter( (d) => linked_to(d, i0) )
         .each( (d) => { affiliated.add(d.source_index); affiliated.add(d.target_index) })
 
-      // transition graph
-      let trans = g.transition()
-      trans.selectAll(".dept text")
-        .attr("opacity", (d,i) => affiliated.has(i) || i === i0 ? 1 : 0)
-      trans.selectAll(".link")
-        .attr("opacity", (d,i) => linked_to(d, i0) ? 1 : 0.05)
-        .attr("fill", (d) => linked_to(d, i0) ? fill(i0) : fill(dominant_arc(d, i0)) )
+      // silently move labels to focused dept
+
+      g.selectAll(".dept .label_info")
+        .attr("opacity", 0)
+
+      g.selectAll(".dept")
+        .filter( (d,i) => affiliated.has(i) || i === i0 )
+        .call(relayout_labels)
+
+      // transition the chords, then fade in labels
+
+      g.transition()
+        .selectAll(".link")
+          .attr("opacity", (d,i) => linked_to(d, i0) ? 1 : 0.025)
+// TODO.  use gradients instead
+//          .attr("fill", (d) => linked_to(d, i0) ? fill(i0) : fill(dominant_arc(d, i0)) )
+
+      let trans = g.transition().delay(1500).duration(500)
+
+      trans.selectAll(".dept .label_info")
+           .attr("opacity", (d,i) => affiliated.has(i) || i === i0 ? 1 : 0)
+      trans.select(".title")
+           .attr("opacity", 0)
+
     }
 
-    function defocus() {
-      let trans = d3.select(this).transition()
-      trans.selectAll(".link")
-        .attr("fill", (d) => fill(dominant_arc(d)))
-        .attr("opacity", 1)
-      trans.selectAll(".dept text")
+    function defocus(g) {
+
+      g.classed('focused', false)
+
+      g.transition().selectAll(".dept .label_info")
         .attr("opacity", 0)
+
+      let trans = g.transition().delay(500)
+
+      trans.selectAll(".link")
+// TODO.  use gradients instead
+//        .attr("fill", (d) => fill(dominant_arc(d)))
+          .attr("opacity", 0.9)
+
+      trans.select(".title")
+           .attr("opacity", 1)
     }
 
     let chart = function(g, order) {
+
+      // margins
+
+      g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')')
+
+      // pair of graph connection diagrams
+
+      const matrix_titles = [ 'Research', 'Teaching' ]
+
       let chord = g.selectAll(".chord")
         .data([research_matrix, teaching_matrix])
 
       chord.enter().append("g")
-        .attr("class", "chord")
+          .attr("class", "chord")
+        .append("text")
+          .attr("class", "title")
+          .attr("text-anchor", "middle")
+          .text( (d,i) => matrix_titles[i] )
+
+      chord.select(".title")
+        .attr("transform", "translate(0," + -(labelRadius + title_margin) + ")")
 
       chord.attr("transform", (d,i) => "translate(" + (labelRadius * 2 * i + labelRadius) + "," + labelRadius + ")")
            .call(update, order)
 
-      let depts = chord.selectAll(".dept")
+      // behavior
 
-      depts.on("mouseenter", focus.bind(null, chord))
-           .on("mouseout", defocus)
+      // [ focus each chord diagram separately since labels must be repositioned ]
+
+      chord.selectAll(".dept path")
+             .on("mouseenter", (d,i) => chord.each( function() { focus(d3.select(this), d, i) }))
+             .on("mouseout", (d,i) => chord.each( function() { defocus(d3.select(this), d, i) }))
     }
 
     chart.relayout = function() {
@@ -392,6 +612,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
 
   function render_matrix() {
+
+    const margins = { top: 100, left: 0, right: 0, bottom: 0 }
 
     const legend_cell = 7
     const legend_packing = 1
@@ -429,11 +651,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     let chart = function(g, order) {
 
+      g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')')
+
       scale.domain(orders[order])
 
       sizescale.range([3, scale.rangeBand()])
-
-      g.attr("transform", "translate(0,100)")
 
       // cells (links)
 
