@@ -30,6 +30,8 @@
 //   - add "research" & "teaching" titles to chord diagrams               DONE
 //   - rename "chord" & "matrix"                                          DONE
 //   - outer margins need adjusting
+//   - minimum sizes for each visualization                               DONE
+//   - keep viz selector on the same line when window small
 
 //   - matrix needs to rescale after window resize
 
@@ -59,30 +61,20 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   // extract faculty counts per department
 
-  let faculty = d3.range(n).map( () => 0)
-  depts.forEach( (d) => faculty[dept_names.indexOf(d.department)] = d.faculty)
+  let faculty = d3.range(n).map( () => 0 )
+  depts.forEach( (d) => faculty[dept_names.indexOf(d.department)] = d.faculty )
 
 
   // prepare the data matrices
-
-  function populate(xs, m) {
-    xs.forEach( (x) => {
-      let i = dept_names.indexOf(x.department1)
-      let j = dept_names.indexOf(x.department2)
-      if(m[i][j] || m[j][i]) {
-        console.log("WARNING: " + x.department1 + " x " + x.department2 + " = " + m[i][j] + " or " + m[j][i] + " or " + x.links + "?")
-      }
-      m[i][j] = m[j][i] = x.links
-    })
-    return m
-  }
 
   let sum = (vector) => vector.reduce( (a,b) => a+b, 0.0)
   let matrix_add = lift( (a,b) => a+b )
   let matrix_subtract = lift( (a,b) => a-b )
 
-  let research_matrix = populate(research, constant_matrix(n))
-  let teaching_matrix = populate(teaching, constant_matrix(n))
+  let populate_departments = populate.bind(null, (x) => dept_names.indexOf(x.department1), (x) => dept_names.indexOf(x.department2), (x) => x.links)
+
+  let research_matrix = populate_departments(research, constant_matrix(n))
+  let teaching_matrix = populate_departments(teaching, constant_matrix(n))
 
   let links_matrix = matrix_add(research_matrix, teaching_matrix)
   let links_sum = links_matrix.map(sum)
@@ -98,6 +90,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   // cross-visualization configuration
 
   const margins = { top: 0, left: 150, right: 50, bottom: 0 }
+  const min_width = 800
   const firstSlide = 2500
   const slideSpeed = 7500
   const orders = [ 'department', 'links', 'emphasis', 'faculty' ]
@@ -188,6 +181,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   // layout entire application
 
   function relayout(minWidth) {
+    minWidth = Math.max(minWidth, min_width)
+
     width = minWidth - margins.right
     height = minWidth * 0.7 - margins.bottom
 
@@ -613,7 +608,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   function render_matrix() {
 
-    const margins = { top: 100, left: 0, right: 0, bottom: 0 }
+    const margins = { top: 100, left: 0, right: 200, bottom: 0 }
 
     const legend_cell = 7
     const legend_packing = 1
@@ -747,7 +742,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
           .data(d3.range(d3.min(csd), d3.max(csd)))
         .enter().append("g")
           .attr("class", "tick")
-          .attr("transform", (d,i) => "translate(-150," + (50 + (legend_cell + legend_packing) * i) +  ")")
+          .attr("transform", (d,i) => "translate(" + [-150, 50 + (legend_cell + legend_packing) * i] +  ")")
 
       tick.append("rect")
             .attr("width", legend_cell)
@@ -766,7 +761,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
          .data(d3.range(ssd[0], ssd[1], 2))
         .enter().append("g")
          .attr("class", "tick2")
-         .attr("transform", (d,i) => "translate(-150," + (scale.rangeBand() * i + 200) + ")")
+         .attr("transform", (d,i) => "translate(" + [-150, scale.rangeBand() * i + 200] + ")")
 
       tick2.append("rect")
          .attr("x", (d,i) => scale.rangeBand() / 2.0 - sizescale(i) / 2.0)
@@ -858,4 +853,16 @@ function lift(fn) {
 
     return c
   }
+}
+
+function populate(proj1, proj2, valfn, xs, m) {
+  xs.forEach( (x) => {
+    let i = proj1(x)
+    let j = proj2(x)
+    if(m[i][j] || m[j][i]) {
+      console.log("WARNING: " + i + " x " + j + " = " + m[i][j] + " or " + m[j][i] + " or " + valfn(x) + "?")
+    }
+    m[i][j] = m[j][i] = valfn(x)
+  })
+  return m
 }

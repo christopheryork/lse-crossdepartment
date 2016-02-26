@@ -30,6 +30,8 @@
 //   - add "research" & "teaching" titles to chord diagrams               DONE
 //   - rename "chord" & "matrix"                                          DONE
 //   - outer margins need adjusting
+//   - minimum sizes for each visualization                               DONE
+//   - keep viz selector on the same line when window small
 
 //   - matrix needs to rescale after window resize
 
@@ -78,18 +80,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   // prepare the data matrices
 
-  function populate(xs, m) {
-    xs.forEach(function (x) {
-      var i = dept_names.indexOf(x.department1);
-      var j = dept_names.indexOf(x.department2);
-      if (m[i][j] || m[j][i]) {
-        console.log("WARNING: " + x.department1 + " x " + x.department2 + " = " + m[i][j] + " or " + m[j][i] + " or " + x.links + "?");
-      }
-      m[i][j] = m[j][i] = x.links;
-    });
-    return m;
-  }
-
   var sum = function sum(vector) {
     return vector.reduce(function (a, b) {
       return a + b;
@@ -102,8 +92,16 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     return a - b;
   });
 
-  var research_matrix = populate(research, constant_matrix(n));
-  var teaching_matrix = populate(teaching, constant_matrix(n));
+  var populate_departments = populate.bind(null, function (x) {
+    return dept_names.indexOf(x.department1);
+  }, function (x) {
+    return dept_names.indexOf(x.department2);
+  }, function (x) {
+    return x.links;
+  });
+
+  var research_matrix = populate_departments(research, constant_matrix(n));
+  var teaching_matrix = populate_departments(teaching, constant_matrix(n));
 
   var links_matrix = matrix_add(research_matrix, teaching_matrix);
   var links_sum = links_matrix.map(sum);
@@ -118,6 +116,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
   // cross-visualization configuration
 
   var margins = { top: 0, left: 150, right: 50, bottom: 0 };
+  var min_width = 800;
   var firstSlide = 2500;
   var slideSpeed = 7500;
   var orders = ['department', 'links', 'emphasis', 'faculty'];
@@ -194,6 +193,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
   // layout entire application
 
   function relayout(minWidth) {
+    minWidth = Math.max(minWidth, min_width);
+
     width = minWidth - margins.right;
     height = minWidth * 0.7 - margins.bottom;
 
@@ -608,7 +609,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   function render_matrix() {
 
-    var margins = { top: 100, left: 0, right: 0, bottom: 0 };
+    var margins = { top: 100, left: 0, right: 200, bottom: 0 };
 
     var legend_cell = 7;
     var legend_packing = 1;
@@ -722,7 +723,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       // legends
 
       var tick = g.selectAll(".tick").data(d3.range(d3.min(csd), d3.max(csd))).enter().append("g").attr("class", "tick").attr("transform", function (d, i) {
-        return "translate(-150," + (50 + (legend_cell + legend_packing) * i) + ")";
+        return "translate(" + [-150, 50 + (legend_cell + legend_packing) * i] + ")";
       });
 
       tick.append("rect").attr("width", legend_cell).attr("height", legend_cell).attr("fill", function (d) {
@@ -735,7 +736,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       var ssd = sizescale.domain();
       var tick2 = g.selectAll(".tick2").data(d3.range(ssd[0], ssd[1], 2)).enter().append("g").attr("class", "tick2").attr("transform", function (d, i) {
-        return "translate(-150," + (scale.rangeBand() * i + 200) + ")";
+        return "translate(" + [-150, scale.rangeBand() * i + 200] + ")";
       });
 
       tick2.append("rect").attr("x", function (d, i) {
@@ -833,4 +834,16 @@ function lift(fn) {
 
     return c;
   };
+}
+
+function populate(proj1, proj2, valfn, xs, m) {
+  xs.forEach(function (x) {
+    var i = proj1(x);
+    var j = proj2(x);
+    if (m[i][j] || m[j][i]) {
+      console.log("WARNING: " + i + " x " + j + " = " + m[i][j] + " or " + m[j][i] + " or " + valfn(x) + "?");
+    }
+    m[i][j] = m[j][i] = valfn(x);
+  });
+  return m;
 }
