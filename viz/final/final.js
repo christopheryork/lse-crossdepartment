@@ -31,7 +31,7 @@
 //   - rename "chord" & "matrix"                                          DONE
 //   - outer margins need adjusting
 //   - minimum sizes for each visualization                               DONE
-//   - keep viz selector on the same line when window small
+//   - keep viz selector on the same line when window small               DONE
 
 //   - matrix needs to rescale after window resize
 
@@ -115,7 +115,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   // cross-visualization configuration
 
-  var margins = { top: 0, left: 150, right: 50, bottom: 0 };
+  var margins = { top: 0, left: 150, right: 0, bottom: 0 };
   var min_width = 800;
   var firstSlide = 2500;
   var slideSpeed = 7500;
@@ -609,7 +609,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   function render_matrix() {
 
-    var margins = { top: 100, left: 0, right: 200, bottom: 0 };
+    var margins = { top: 110, left: 0, right: 300, bottom: 0 };
 
     var legend_cell = 7;
     var legend_packing = 1;
@@ -652,6 +652,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
     var csd = colorscale.domain();
 
+    var immediate = true;
+
     var chart = function chart(g, order) {
 
       g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')');
@@ -674,7 +676,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return dept_names[d.i] + " & " + dept_names[d.j] + "\nResearch: " + research_matrix[d.i][d.j] + ", Teaching: " + teaching_matrix[d.i][d.j];
       });
 
-      cell_enter.append("rect").attr("class", "background").attr("rx", 1).attr("ry", 1).attr("stroke", "none").attr("width", scale.rangeBand()).attr("height", scale.rangeBand()).attr("opacity", 0.2).attr("fill", "none");
+      cell_enter.append("rect").attr("class", "background").attr("rx", 1).attr("ry", 1).attr("stroke", "none").attr("opacity", 0.2).attr("fill", "none");
 
       cell_enter.append("rect").attr("class", "sum").attr("rx", 1).attr("ry", 1);
 
@@ -753,27 +755,39 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return d + (i === 0 ? " total links" : "");
       });
 
+      // finish layout
+
+      g.selectAll(".cell .background").attr("width", scale.rangeBand()).attr("height", scale.rangeBand());
+
+      g.selectAll(".cell .sum").attr("width", function (d) {
+        return sizescale(links_matrix[d.i][d.j]);
+      }).attr("height", function (d) {
+        return sizescale(links_matrix[d.i][d.j]);
+      });
+
       // animation
 
-      var trans = g.transition().duration(2500);
+      var trans = g.transition().duration(immediate ? 0 : 2500);
 
       trans.selectAll(".x.labels").delay(function (d, i) {
-        return scale(i) * 4;
+        return immediate ? 0 : scale(i) * 4;
       }).attr("transform", function (d, i) {
         return "translate(" + (scale(i) + 5) + ",-15)rotate(-45)";
       });
 
       trans.selectAll(".cell").delay(function (d) {
-        return scale(d.i) * 4;
+        return immediate ? 0 : scale(d.i) * 4;
       }).attr("transform", function (d) {
         return "translate(" + scale(d.i) + "," + scale(d.j) + ")";
       });
 
       trans.selectAll(".y.labels").delay(function (d, i) {
-        return scale(i) * 4;
+        return immediate ? 0 : scale(i) * 4;
       }).attr("transform", function (d, i) {
         return "translate(" + (width - margins.right - margins.left) + "," + scale(i) + ")";
       });
+
+      immediate = false;
 
       // behavior
 
@@ -787,6 +801,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
     chart.relayout = function () {
       scale.rangeRoundBands([0, width - margins.left - margins.right], 0.1);
+      immediate = true;
     };
 
     return chart;

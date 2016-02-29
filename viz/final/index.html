@@ -10,8 +10,11 @@ body {
 
 h1 {
   margin: 0;
-  display: inline;
-  float: left;
+  display: inline-block;
+}
+
+#titlebar {
+  white-space: nowrap;
 }
 
 #order {
@@ -27,8 +30,7 @@ h1 {
 }
 
 #viz {
-  float: left;
-  display: inline;
+  display: inline-block;
   margin: .4em 0 0 6em;
   font: 12px sans-serif;
   text-transform: uppercase;
@@ -108,9 +110,10 @@ path {
 </style>
 <body>
 
-<h1>Cross-Departmental Research and Teaching at the LSE</h1>
-
-<div id="viz"><span>Explore</span><ul class="disable-selection"></ul></div>
+<div id="titlebar">
+  <h1>Cross-Departmental Research and Teaching at the LSE</h1>
+  <div id="viz"><span>Explore</span><ul class="disable-selection"></ul></div>
+</div>
 
 <form id="order" class="disable-selection">
 <dl>

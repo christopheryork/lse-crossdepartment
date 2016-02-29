@@ -31,7 +31,7 @@
 //   - rename "chord" & "matrix"                                          DONE
 //   - outer margins need adjusting
 //   - minimum sizes for each visualization                               DONE
-//   - keep viz selector on the same line when window small
+//   - keep viz selector on the same line when window small               DONE
 
 //   - matrix needs to rescale after window resize
 
@@ -71,7 +71,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   let matrix_add = lift( (a,b) => a+b )
   let matrix_subtract = lift( (a,b) => a-b )
 
-  let populate_departments = populate.bind(null, (x) => dept_names.indexOf(x.department1), (x) => dept_names.indexOf(x.department2), (x) => x.links)
+  let populate_departments = populate.bind(null, (x) => dept_names.indexOf(x.department1),
+                                                 (x) => dept_names.indexOf(x.department2),
+                                                 (x) => x.links)
 
   let research_matrix = populate_departments(research, constant_matrix(n))
   let teaching_matrix = populate_departments(teaching, constant_matrix(n))
@@ -89,7 +91,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   // cross-visualization configuration
 
-  const margins = { top: 0, left: 150, right: 50, bottom: 0 }
+  const margins = { top: 0, left: 150, right: 0, bottom: 0 }
   const min_width = 800
   const firstSlide = 2500
   const slideSpeed = 7500
@@ -608,7 +610,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   function render_matrix() {
 
-    const margins = { top: 100, left: 0, right: 200, bottom: 0 }
+    const margins = { top: 110, left: 0, right: 300, bottom: 0 }
 
     const legend_cell = 7
     const legend_packing = 1
@@ -644,6 +646,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     let csd = colorscale.domain()
 
+    let immediate = true
+
     let chart = function(g, order) {
 
       g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')')
@@ -673,8 +677,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         .attr("rx", 1)
         .attr("ry", 1)
         .attr("stroke", "none")
-        .attr("width", scale.rangeBand())
-        .attr("height", scale.rangeBand())
         .attr("opacity", 0.2)
         .attr("fill", "none")
 
@@ -776,21 +778,33 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         .attr("dominant-baseline", "middle")
         .text( (d, i) => d + (i === 0 ? " total links" : ""))
 
+      // finish layout
+
+      g.selectAll(".cell .background")
+        .attr("width", scale.rangeBand())
+        .attr("height", scale.rangeBand())
+
+      g.selectAll(".cell .sum")
+          .attr("width", (d) => sizescale( links_matrix[d.i][d.j] ))
+          .attr("height", (d) => sizescale( links_matrix[d.i][d.j] ))
+
       // animation
 
-      let trans = g.transition().duration(2500)
+      let trans = g.transition().duration(immediate ? 0 : 2500)
 
       trans.selectAll(".x.labels")
-          .delay(function(d, i) { return scale(i) * 4; })
+          .delay(function(d, i) { return immediate ? 0 : scale(i) * 4; })
           .attr("transform", (d, i) => "translate(" + (scale(i) + 5) + ",-15)rotate(-45)")
 
       trans.selectAll(".cell")
-          .delay(function(d) { return scale(d.i) * 4; })
-          .attr("transform", (d) => "translate(" + scale(d.i) + "," + scale(d.j) + ")" )
+            .delay(function(d) { return immediate ? 0 : scale(d.i) * 4; })
+            .attr("transform", (d) => "translate(" + scale(d.i) + "," + scale(d.j) + ")" )
 
       trans.selectAll(".y.labels")
-          .delay(function(d, i) { return scale(i) * 4; })
+          .delay(function(d, i) { return immediate ? 0 : scale(i) * 4; })
           .attr("transform", (d,i) => "translate(" + (width - margins.right - margins.left) + "," + scale(i) + ")")
+
+      immediate = false
 
       // behavior
 
@@ -805,6 +819,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     chart.relayout = function () {
       scale.rangeRoundBands([0, width - margins.left - margins.right], 0.1)
+      immediate = true
     }
 
     return chart
