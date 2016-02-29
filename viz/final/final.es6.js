@@ -98,7 +98,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   const orders = [ 'department', 'links', 'emphasis', 'faculty' ]
 
 
-  let width, height
+  let width
 
   let svg = d3.select("body")
     .append("svg")
@@ -186,10 +186,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     minWidth = Math.max(minWidth, min_width)
 
     width = minWidth - margins.right
-    height = minWidth * 0.7 - margins.bottom
 
     svg.attr("width", width)
-       .attr("height", height)
 
     d3.keys(render).forEach( (viz) => {
       render[viz].relayout()
@@ -252,6 +250,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     const label_margin = 1.5
     const label_padding = 5
     const title_margin = 20
+
+    let height
 
     let fill = d3.scale.category20c()
       .domain(d3.range(0, n))
@@ -558,6 +558,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       // margins
 
+      // TODO.  not best to use a global here
+      svg.attr('height', height)
+
       g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')')
 
       // pair of graph connection diagrams
@@ -590,6 +593,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     }
 
     chart.relayout = function() {
+      height = width * 0.7 - margins.bottom
+
       innerRadius = Math.min((width - 100) / 2.0, height) * .41
       outerRadius = innerRadius * 1.05
       chordRadius = innerRadius * 0.99
@@ -649,6 +654,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     let immediate = true
 
     let chart = function(g, order) {
+
+      // margins
+
+      // TODO.  not best to use a global here
+      svg.attr('height', width - margins.bottom)
 
       g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')')
 

@@ -121,8 +121,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
   var slideSpeed = 7500;
   var orders = ['department', 'links', 'emphasis', 'faculty'];
 
-  var width = undefined,
-      height = undefined;
+  var width = undefined;
 
   var svg = d3.select("body").append("svg");
 
@@ -196,9 +195,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     minWidth = Math.max(minWidth, min_width);
 
     width = minWidth - margins.right;
-    height = minWidth * 0.7 - margins.bottom;
 
-    svg.attr("width", width).attr("height", height);
+    svg.attr("width", width);
 
     d3.keys(render).forEach(function (viz) {
       render[viz].relayout();
@@ -264,6 +262,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     var label_margin = 1.5;
     var label_padding = 5;
     var title_margin = 20;
+
+    var height = undefined;
 
     var fill = d3.scale.category20c().domain(d3.range(0, n));
 
@@ -558,6 +558,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       // margins
 
+      // TODO.  not best to use a global here
+      svg.attr('height', height);
+
       g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')');
 
       // pair of graph connection diagrams
@@ -592,6 +595,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     };
 
     chart.relayout = function () {
+      height = width * 0.7 - margins.bottom;
+
       innerRadius = Math.min((width - 100) / 2.0, height) * .41;
       outerRadius = innerRadius * 1.05;
       chordRadius = innerRadius * 0.99;
@@ -655,6 +660,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     var immediate = true;
 
     var chart = function chart(g, order) {
+
+      // margins
+
+      // TODO.  not best to use a global here
+      svg.attr('height', width - margins.bottom);
 
       g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')');
 
