@@ -29,11 +29,11 @@
 //   - add "explore the data" to title                                    DONE
 //   - add "research" & "teaching" titles to chord diagrams               DONE
 //   - rename "chord" & "matrix"                                          DONE
-//   - outer margins need adjusting
+//   - outer margins need adjusting                                       DONE
 //   - minimum sizes for each visualization                               DONE
 //   - keep viz selector on the same line when window small               DONE
 
-//   - matrix needs to rescale after window resize
+//   - matrix needs to rescale after window resize                        DONE
 
 "use strict";
 
@@ -735,7 +735,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       // legends
 
       var tick = g.selectAll(".tick").data(d3.range(d3.min(csd), d3.max(csd))).enter().append("g").attr("class", "tick").attr("transform", function (d, i) {
-        return "translate(" + [-150, 50 + (legend_cell + legend_packing) * i] + ")";
+        return "translate(" + [-150 + 8, 50 + (legend_cell + legend_packing) * i] + ")";
       });
 
       tick.append("rect").attr("width", legend_cell).attr("height", legend_cell).attr("fill", function (d) {
@@ -748,7 +748,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       var ssd = sizescale.domain();
       var tick2 = g.selectAll(".tick2").data(d3.range(ssd[0], ssd[1], 2)).enter().append("g").attr("class", "tick2").attr("transform", function (d, i) {
-        return "translate(" + [-150, scale.rangeBand() * i + 200] + ")";
+        return "translate(" + [-150 + 8, scale.rangeBand() * i + 230] + ")";
       });
 
       tick2.append("rect").attr("x", function (d, i) {

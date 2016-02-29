@@ -29,11 +29,11 @@
 //   - add "explore the data" to title                                    DONE
 //   - add "research" & "teaching" titles to chord diagrams               DONE
 //   - rename "chord" & "matrix"                                          DONE
-//   - outer margins need adjusting
+//   - outer margins need adjusting                                       DONE
 //   - minimum sizes for each visualization                               DONE
 //   - keep viz selector on the same line when window small               DONE
 
-//   - matrix needs to rescale after window resize
+//   - matrix needs to rescale after window resize                        DONE
 
 "use strict";
 
@@ -754,7 +754,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
           .data(d3.range(d3.min(csd), d3.max(csd)))
         .enter().append("g")
           .attr("class", "tick")
-          .attr("transform", (d,i) => "translate(" + [-150, 50 + (legend_cell + legend_packing) * i] +  ")")
+          .attr("transform", (d,i) => "translate(" + [-150 + 8, 50 + (legend_cell + legend_packing) * i] +  ")")
 
       tick.append("rect")
             .attr("width", legend_cell)
@@ -773,7 +773,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
          .data(d3.range(ssd[0], ssd[1], 2))
         .enter().append("g")
          .attr("class", "tick2")
-         .attr("transform", (d,i) => "translate(" + [-150, scale.rangeBand() * i + 200] + ")")
+         .attr("transform", (d,i) => "translate(" + [-150 + 8, scale.rangeBand() * i + 230] + ")")
 
       tick2.append("rect")
          .attr("x", (d,i) => scale.rangeBand() / 2.0 - sizescale(i) / 2.0)
