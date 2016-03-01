@@ -31,6 +31,10 @@ h1 {
   margin: 0;
 }
 
+#order input {
+  margin-right: .5em;
+}
+
 #viz {
   display: inline-block;
   margin: .4em 0 0 6em;
@@ -118,19 +122,13 @@ path {
 </div>
 
 <form id="order" class="disable-selection">
-<dl>
-  <dt>Order</dt>
-  <dd>
-    <label><input type="radio" name="order" value="department" checked/>&nbsp;department</label><br/>
-    <label><input type="radio" name="order" value="links"/>&nbsp;count of links</label><br/>
-    <label><input type="radio" name="order" value="emphasis"/>&nbsp;link balance</label><br/>
-    <label><input type="radio" name="order" value="faculty"/>&nbsp;faculty size</label><br/>
-    <br/>
-  </dd>
-</dl>
+  <dl>
+    <dt>Order</dt>
+    <dd></dd>
+  </dl>
 <!-- <label class="toggle"><input type="checkbox" id="cbox" value="second_checkbox">&nbsp;Details</label> -->
 </form>
 <script src="../js/d3.min.js"></script>
 <script src="../js/queue.min.js"></script>
-<script src="final.es6.js"></script>
+<script src="final.js"></script>
 </body>

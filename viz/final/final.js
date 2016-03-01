@@ -34,6 +34,8 @@
 //   - keep viz selector on the same line when window small               DONE
 
 //   - matrix needs to rescale after window resize                        DONE
+//   - matrix is cut off on right
+//   - matrix should scroll with labels?
 
 "use strict";
 
@@ -53,24 +55,18 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     return d.links = +d.links;
   });
 
-  // prepare list of nodes; should be a superset of depts list
-  var rd1 = research.map(function (d) {
+  // prepare department names & faculty count per department
+
+  var dept_names = uniq(research.map(function (d) {
     return d.department1;
-  });
-  var rd2 = research.map(function (d) {
+  }), research.map(function (d) {
     return d.department2;
-  });
-  var td1 = teaching.map(function (d) {
+  }), teaching.map(function (d) {
     return d.department1;
-  });
-  var td2 = teaching.map(function (d) {
+  }), teaching.map(function (d) {
     return d.department2;
-  });
-  var dept_names = d3.set([].concat(rd1).concat(rd2).concat(td1).concat(td2)).values();
+  }));
   var n = dept_names.length;
-
-  // extract faculty counts per department
-
   var faculty = d3.range(n).map(function () {
     return 0;
   });
@@ -108,6 +104,10 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
   var balance_matrix = matrix_subtract(research_matrix, teaching_matrix);
   var balance_sum = balance_matrix.map(sum);
 
+  var links_max = d3.max(links_matrix, function (v) {
+    return d3.max(v);
+  });
+
   // application state
 
   var cur_viz = undefined,
@@ -117,25 +117,28 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   var margins = { top: 0, left: 150, right: 0, bottom: 0 };
   var min_width = 800;
-  var firstSlide = 2500;
-  var slideSpeed = 7500;
-  var orders = ['department', 'links', 'emphasis', 'faculty'];
+
+  var first_slide_pause = 2500;
+  var n_slide_pause = 7500;
+  var slide_transition_dur = 500;
 
   var width = undefined;
 
   var svg = d3.select("body").append("svg");
 
-  svg.append('defs').append('marker').attr('id', 'markerCircle').attr('markerWidth', 3).attr('markerHeight', 3).attr('refX', 1.5).attr('refY', 1.5).append('circle').attr('r', 1.5).attr('cx', 1.5).attr('cy', 1.5);
-
   var svg_g = svg.append("g").attr("transform", "translate(" + margins.left + "," + margins.top + ")");
 
   // timer cycling through orders
 
+  // convention: the timer will not advance while the mouse is hovering over any ele
+  //             with the class "no_advance"
+
   var timeout = undefined;
 
   function advance() {
-    var i = orders.indexOf(cur_order);
-    var next_order = orders[(i + 1) % orders.length];
+    var keys = d3.keys(orders);
+    var i = keys.indexOf(cur_order);
+    var next_order = keys[(i + 1) % keys.length];
 
     var hover_count = 0;
     d3.select(".no_advance:hover").each(function () {
@@ -146,10 +149,10 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       show(cur_viz, next_order);
     }
 
-    timeout = setTimeout(advance, slideSpeed);
+    timeout = setTimeout(advance, n_slide_pause);
   }
 
-  // transition application state
+  // transition application state and render everything
 
   function show(viz, order) {
     cur_viz = viz;
@@ -158,38 +161,40 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     render_all();
   }
 
-  // render complete tree of components
+  // render complete tree of visualizations
 
-  var viz_names = {
-    chord: 'By Department',
-    matrix: 'All the Data'
+  var visualizations = {
+    chord: { label: 'By Department', component: render_dual() },
+    matrix: { label: 'All the Data', component: render_matrix() }
   };
 
-  var render = {
-    chord: render_dual(),
-    matrix: render_matrix()
-  };
+  var orders = {
+    department: 'department',
+    links: 'count of links',
+    emphasis: 'link balance',
+    faculty: 'faculty size' };
 
   function render_all() {
     render_viz_selector(cur_viz);
     render_order(cur_order);
 
-    var viz = svg_g.selectAll(".viz").data(d3.keys(render));
+    var viz = svg_g.selectAll(".viz").data(d3.keys(visualizations));
 
     viz.enter().append("g").attr("class", "viz");
 
     viz.filter(function (d) {
       return d === cur_viz;
-    }).call(render[cur_viz], cur_order);
+    }).call(visualizations[cur_viz].component, cur_order);
 
     viz.attr('visibility', function (d) {
       return d === cur_viz ? 'visible' : 'hidden';
-    }).transition().duration(500).attr("opacity", function (d) {
+    }) // req'd for mouse event handling
+    .transition().duration(slide_transition_dur).attr("opacity", function (d) {
       return d === cur_viz ? 1 : 0;
     });
   }
 
-  // layout entire application
+  // layout entire application when browser window resized
 
   function relayout(minWidth) {
     minWidth = Math.max(minWidth, min_width);
@@ -198,8 +203,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
     svg.attr("width", width);
 
-    d3.keys(render).forEach(function (viz) {
-      render[viz].relayout();
+    d3.keys(visualizations).forEach(function (viz) {
+      visualizations[viz].component.relayout();
     });
   }
 
@@ -208,15 +213,15 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     render_all();
   };
 
-  // viz selector
+  // current viz selector
 
   function render_viz_selector(viz) {
-    var viz_li = d3.select("#viz ul").selectAll("li").data(d3.keys(render));
+    var viz_li = d3.select("#viz ul").selectAll("li").data(d3.keys(visualizations));
 
     viz_li.enter().append("li").attr("id", function (d) {
       return d;
     }).text(function (d) {
-      return viz_names[d];
+      return visualizations[d].label;
     }).on("click", function (d) {
       return show(d, cur_order);
     });
@@ -229,17 +234,32 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
   // order selector
 
   function render_order(order) {
+    var order_div = d3.select("#order dd").selectAll("div").data(d3.keys(orders));
 
-    // TODO.  generate the order HTML using D3?
+    var order_div_e = order_div.enter().append("div");
+    order_div_e.append("input").attr("id", function (d) {
+      return d;
+    }).attr("type", "radio").attr("name", "order").attr("value", function (d) {
+      return d;
+    });
+    order_div_e.append("label").attr("for", function (d) {
+      return d;
+    }).text(function (d) {
+      return orders[d];
+    });
 
-    d3.select('#order input[value="' + order + '"]').property('checked', true);
-
-    d3.select("#order").on("change", function (d) {
-      var order = d3.select('#order :checked').node().value;
-      clearTimeout(timeout);
-      show(cur_viz, order);
+    order_div.select("input").property("checked", function (d) {
+      return d === order;
     });
   }
+
+  d3.select("#order").on("change", function () {
+    var new_order = d3.select("#order input:checked").node().value;
+    clearTimeout(timeout);
+    if (new_order !== cur_order) {
+      show(cur_viz, new_order);
+    }
+  });
 
   // dual-chord viz
 
@@ -253,7 +273,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     var margins = { top: 80, left: 0, right: 0, bottom: 0 };
 
     var τ = 2 * Math.PI;
-    var pie_rotate = τ * 5 / 8; // when ordered, start in lower left corner so labels run downwards
+    var pie_rotate = τ * 5 / 8; // when ordered, start in lower left corner so labels fall downwards
 
     var padAngle = 0.01;
     var chordWidth = 0.04;
@@ -262,6 +282,14 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     var label_margin = 1.5;
     var label_padding = 5;
     var title_margin = 20;
+    var marker_circle_radius = 1.5;
+
+    var label_trim_len = 27;
+
+    var defocus_opacity = 0.0625;
+    var resting_opacity = 0.8;
+    var label_delay = 1500;
+    var label_dur = 500;
 
     var height = undefined;
 
@@ -300,10 +328,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       faculty: pie.sort(d3.ascending).value(Number)(faculty.map(function (d) {
         return d || 0;
       })),
-      links: pie.sort(sortsum).value(sum)(matrix_add(research_matrix, teaching_matrix)),
-      emphasis: pie.sort(sortsum).value(sum)(matrix_subtract(research_matrix, teaching_matrix))
+      links: pie.sort(sortsum).value(sum)(links_matrix),
+      emphasis: pie.sort(sortsum).value(sum)(balance_matrix)
     };
 
+    // based on position of each node (arc), generate layout for links (chords)
     function calc_links(data, node_positions) {
       var links = [];
       var i = -1;while (i++ < n - 1) {
@@ -321,10 +350,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       return links;
     }
 
-    var marker_circle_radius = 1.5;
-
     function relayout_labels(nodes) {
-
       // add defs to svg header, if not already present
       if (svg.select('#markerCircle').empty()) {
         svg.append('defs').append('marker').attr('id', 'markerCircle').attr('markerWidth', marker_circle_radius * 2).attr('markerHeight', marker_circle_radius * 2).attr('refX', marker_circle_radius).attr('refY', marker_circle_radius).append('circle').attr('r', marker_circle_radius).attr('cx', marker_circle_radius).attr('cy', marker_circle_radius);
@@ -335,26 +361,29 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       var sign = function sign(x) {
         return x > 0 ? 1 : -1;
       };
-      var spacing = 2; // TODO change to "adjust"
+      var adjust = 2;
 
       // returns the upper-left point in the rectangle
       // negative sizes indicate label's origin is on opposite side
-      function attach_point(point, size) {
+      var attach_point = function attach_point(point, size) {
         var attach = point.slice();
         attach[0] += Math.min(0, size[0]);
         attach[1] += Math.min(0, size[1]);
         return attach;
-      }
+      };
 
-      function rect_intersect(point1, size1, point2, size2) {
+      // check if two rectangles intersect,
+      var rect_intersect = function rect_intersect(point1, size1, point2, size2) {
+        var tolerance = arguments.length <= 4 || arguments[4] === undefined ? 0 : arguments[4];
+
         var r1 = { x1: point1[0], y1: point1[1], x2: point1[0] + size1[0], y2: point1[1] + size1[1] };
         var r2 = { x1: point2[0], y1: point2[1], x2: point2[0] + size2[0], y2: point2[1] + size2[1] };
-        var separate = /* left */Math.max(r1.x1, r1.x2) + label_margin < Math.min(r2.x1, r2.x2) - label_margin ||
-        /* above */Math.max(r1.y1, r1.y2) + label_margin < Math.min(r2.y1, r2.y2) - label_margin ||
-        /* right */Math.min(r1.x1, r1.x2) - label_margin > Math.max(r2.x1, r2.x2) + label_margin ||
-        /* below */Math.min(r1.y1, r1.y2) - label_margin > Math.max(r2.y1, r2.y2) + label_margin;
+        var separate = /* left */Math.max(r1.x1, r1.x2) + tolerance < Math.min(r2.x1, r2.x2) - tolerance ||
+        /* above */Math.max(r1.y1, r1.y2) + tolerance < Math.min(r2.y1, r2.y2) - tolerance ||
+        /* right */Math.min(r1.x1, r1.x2) - tolerance > Math.max(r2.x1, r2.x2) + tolerance ||
+        /* below */Math.min(r1.y1, r1.y2) - tolerance > Math.max(r2.y1, r2.y2) + tolerance;
         return !separate;
-      }
+      };
 
       // NB not a general solution to circle-rectangle intersection!
       //    this approach requires the rectangle's longest side to be shorter than the circle's diameter
@@ -370,10 +399,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return in_circle(x1, y1) || in_circle(x1, y2) || in_circle(x2, y2) || in_circle(x2, y1);
       }
 
-      var labels = nodes.select('text');
-
       // unconventional use of D3: because bounding box isn't available until text node added to DOM,
       // we do final updates of the layout inside D3 join
+      var labels = nodes.select('text');
       labels.each(function (d) {
         var bbox = this.getBBox();
         d.labelPosition = label_arc.centroid(d);
@@ -402,7 +430,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         relaxing = false;
         nodes.each(function (d0, i0) {
           if (circle_intersect(d0.labelPosition, d0.labelSize, [0, 0], labelRadius)) {
-            d0.labelPosition[1] += sign(d0.labelPosition[1]) * spacing;
+            d0.labelPosition[1] += sign(d0.labelPosition[1]) * adjust;
             relaxing = true;
           }
         });
@@ -414,14 +442,16 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         nodes.each(function (d0, i0) {
           nodes.each(function (d1, i1) {
             if (i0 === i1) return;
-            if (!rect_intersect(d0.labelPosition, d0.labelSize, d1.labelPosition, d1.labelSize)) return;
+            if (!rect_intersect(d0.labelPosition, d0.labelSize, d1.labelPosition, d1.labelSize, label_margin)) return;
             // only nudge the outermost of the two labels
             if (!(Math.abs(d0.labelPosition[0]) < Math.abs(d1.labelPosition[0]))) return;
-            d1.labelPosition[1] += sign(d1.labelPosition[1]) * spacing;
+            d1.labelPosition[1] += sign(d1.labelPosition[1]) * adjust;
             relaxing = true;
           });
         });
       }
+
+      // transfer layout into DOM
 
       labels.attr('transform', function (d) {
         return 'translate(' + attach_point(d.labelPosition, d.labelSize) + ')';
@@ -440,12 +470,20 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       nodes.select('polyline').attr('points', label_rule);
     }
 
+    function install_defs(g) {
+      if (svg.select('#markerCircle').empty()) {
+        svg.append('defs').append('marker').attr('id', 'markerCircle').attr('markerWidth', 3).attr('markerHeight', 3).attr('refX', 1.5).attr('refY', 1.5).append('circle').attr('r', 1.5).attr('cx', 1.5).attr('cy', 1.5);
+      }
+    }
+
     function update(g, order) {
+      // ensure svg defs declared
+      install_defs(g);
 
       // update chords layout
       var node_positions = layouts[order];
 
-      // transition nodes (department arcs)
+      // transition nodes (i.e. department arcs)
 
       var node = g.selectAll(".dept").data(node_positions);
 
@@ -475,12 +513,12 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       });
 
       node.select("text").text(function (d, i) {
-        return trim(dept_names[i], 27);
+        return trim(dept_names[i], label_trim_len);
       });
 
       node.call(relayout_labels);
 
-      // transition links (chords)
+      // transition chords (i.e. cross-department links)
 
       var link = g.selectAll(".link").data(function (matrix) {
         return calc_links(matrix, node_positions);
@@ -492,9 +530,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       link.enter().append("path").attr("class", "link").attr("fill", function (d) {
         return fill(dominant_arc(d));
-      }).attr("opacity", 0);
+      }).attr("opacity", resting_opacity);
 
-      link.transition().duration(mode_dur).attr("opacity", 1).attrTween("d", function (d) {
+      link.transition().duration(mode_dur).attr("opacity", resting_opacity).attrTween("d", function (d) {
         // "this" below requires function...
         var interp = d3.interpolate(this._current || d, d);
         this._current = d;
@@ -525,12 +563,12 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       // transition the chords, then fade in labels
 
       g.transition().selectAll(".link").attr("opacity", function (d, i) {
-        return linked_to(d, i0) ? 1 : 0.025;
+        return linked_to(d, i0) ? 1 : defocus_opacity;
       });
       // TODO.  use gradients instead
       //          .attr("fill", (d) => linked_to(d, i0) ? fill(i0) : fill(dominant_arc(d, i0)) )
 
-      var trans = g.transition().delay(1500).duration(500);
+      var trans = g.transition().delay(label_delay).duration(label_dur);
 
       trans.selectAll(".dept .label_info").attr("opacity", function (d, i) {
         return affiliated.has(i) || i === i0 ? 1 : 0;
@@ -544,12 +582,12 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       g.transition().selectAll(".dept .label_info").attr("opacity", 0);
 
-      var trans = g.transition().delay(500);
+      var trans = g.transition().delay(label_dur);
 
       trans.selectAll(".link")
       // TODO.  use gradients instead
       //        .attr("fill", (d) => fill(dominant_arc(d)))
-      .attr("opacity", 0.9);
+      .attr("opacity", resting_opacity);
 
       trans.select(".title").attr("opacity", 1);
     }
@@ -612,21 +650,27 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     return chart;
   }
 
+  // matrix viz
+
   function render_matrix() {
 
     var margins = { top: 110, left: 0, right: 300, bottom: 0 };
+    var tick_margins = { top: 50, left: 8, right: 0, bottom: 0 };
+    var tick2_margins = { top: 230, left: 8, right: 0, bottom: 0 };
 
+    var axis_width = 200;
+
+    var legend_width = 150;
     var legend_cell = 7;
     var legend_packing = 1;
-    var cell_packing = 4; // should be ceiling(sqrt(max count of links))
-    var cell_padding = 1;
-    var stroke_width = 1.0;
-    var trim_value = 27;
-    var research_color_1 = "red";
-    var research_color_2 = "yellow";
-    var neutral_color = "gray";
+    var label_trim_value = 27;
+
+    var mode_dur = 2500;
+
+    var colors = // NB hand-tweaked for this dataset!
+    [[-9, "#35b7e5"], [-2, "#35b7e5"], [0, "gray"], [4.5, "red"], [9, "yellow"]];
+
     var empty_color = "#dadad9";
-    var teaching_color = "#35b7e5";
 
     var points = d3.merge(d3.range(n).map(function (i) {
       return d3.range(n).map(function (j) {
@@ -651,9 +695,13 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
     var scale = d3.scale.ordinal();
 
-    var colorscale = d3.scale.linear().domain([-9, -2, 0, 4.5, 9]).range([teaching_color, teaching_color, neutral_color, research_color_1, research_color_2]);
+    var colorscale = d3.scale.linear().domain(colors.map(function (d) {
+      return d[0];
+    })).range(colors.map(function (d) {
+      return d[1];
+    }));
 
-    var sizescale = d3.scale.linear().domain([0, 11]); // should be max count of links
+    var sizescale = d3.scale.linear().domain([0, links_max - 1]);
 
     var csd = colorscale.domain();
 
@@ -663,8 +711,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       // margins
 
-      // TODO.  not best to use a global here
-      svg.attr('height', width - margins.bottom);
+      svg.attr('height', width - margins.bottom); // TODO. avoid global DOM alteration
 
       g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')');
 
@@ -708,12 +755,12 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return "translate(" + (scale(i) + 5) + ",-15)rotate(-45)";
       });
 
-      xlabs.append("rect").attr("fill", "transparent").attr("width", 200).attr("height", scale.rangeBand());
+      xlabs.append("rect").attr("fill", "transparent").attr("width", axis_width).attr("height", scale.rangeBand());
 
       xlabs.append("text").attr("class", function (d, i) {
         return "dept" + i;
       }).attr("dominant-baseline", "middle").attr("dy", scale.rangeBand() / 2.0).text(function (d) {
-        return trim(d, trim_value);
+        return trim(d, label_trim_value);
       }).attr("fill", "black");
 
       xlabs.call(highlight.bind(null, "x_"));
@@ -722,12 +769,12 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return "translate(" + (width - margins.right - margins.left) + "," + scale(i) + ")";
       });
 
-      ylabs.append("rect").attr("fill", "transparent").attr("width", 200).attr("height", scale.rangeBand());
+      ylabs.append("rect").attr("fill", "transparent").attr("width", axis_width).attr("height", scale.rangeBand());
 
       ylabs.append("text").attr("class", function (d, i) {
         return "dept" + i;
       }).attr("dominant-baseline", "middle").attr("dy", scale.rangeBand() / 2.0).text(function (d) {
-        return trim(d, trim_value);
+        return trim(d, label_trim_value);
       }).attr("fill", "black");
 
       ylabs.call(highlight.bind(null, "y_"));
@@ -735,7 +782,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       // legends
 
       var tick = g.selectAll(".tick").data(d3.range(d3.min(csd), d3.max(csd))).enter().append("g").attr("class", "tick").attr("transform", function (d, i) {
-        return "translate(" + [-150 + 8, 50 + (legend_cell + legend_packing) * i] + ")";
+        return "translate(" + [-legend_width + tick_margins.left, tick_margins.top + (legend_cell + legend_packing) * i] + ")";
       });
 
       tick.append("rect").attr("width", legend_cell).attr("height", legend_cell).attr("fill", function (d) {
@@ -748,7 +795,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       var ssd = sizescale.domain();
       var tick2 = g.selectAll(".tick2").data(d3.range(ssd[0], ssd[1], 2)).enter().append("g").attr("class", "tick2").attr("transform", function (d, i) {
-        return "translate(" + [-150 + 8, scale.rangeBand() * i + 230] + ")";
+        return "translate(" + [-legend_width + tick_margins.left, tick2_margins.top + scale.rangeBand() * i] + ")";
       });
 
       tick2.append("rect").attr("x", function (d, i) {
@@ -759,7 +806,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return sizescale(i);
       }).attr("height", function (d, i) {
         return sizescale(i);
-      }).attr("fill", neutral_color);
+      }).attr("fill", "grey");
 
       tick2.append("text").attr("dx", scale.rangeBand() * 1.2).attr("dy", scale.rangeBand() / 2.0).attr("dominant-baseline", "middle").text(function (d, i) {
         return d + (i === 0 ? " total links" : "");
@@ -777,7 +824,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       // animation
 
-      var trans = g.transition().duration(immediate ? 0 : 2500);
+      var trans = g.transition().duration(immediate ? 0 : mode_dur);
 
       trans.selectAll(".x.labels").delay(function (d, i) {
         return immediate ? 0 : scale(i) * 4;
@@ -821,7 +868,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   relayout(window.innerWidth);
   show('chord', 'department');
-  timeout = setTimeout(advance, firstSlide);
+  timeout = setTimeout(advance, first_slide_pause);
 });
 
 // Utility functions
@@ -832,6 +879,14 @@ function trim(s, n) {
 
 function to_class(s) {
   return s.toLowerCase().replace(/\W/g, '_');
+}
+
+function uniq() {
+  var vals = [];
+  for (var i = 0; i < arguments.length; i++) {
+    vals = vals.concat(arguments[i]);
+  }
+  return d3.set(vals).values();
 }
 
 // Matrix manipulation

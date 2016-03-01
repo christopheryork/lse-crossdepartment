@@ -34,6 +34,8 @@
 //   - keep viz selector on the same line when window small               DONE
 
 //   - matrix needs to rescale after window resize                        DONE
+//   - matrix is cut off on right
+//   - matrix should scroll with labels?
 
 "use strict";
 
@@ -50,30 +52,26 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   teaching.forEach( (d) => d.links = +d.links )
 
 
-  // prepare list of nodes; should be a superset of depts list
-  let rd1 = research.map( (d) => d.department1 )
-  let rd2 = research.map( (d) => d.department2 )
-  let td1 = teaching.map( (d) => d.department1 )
-  let td2 = teaching.map( (d) => d.department2 )
-  let dept_names = d3.set([].concat(rd1).concat(rd2).concat(td1).concat(td2)).values()
+  // prepare department names & faculty count per department
+
+  let dept_names = uniq( research.map( (d) => d.department1 ),
+                         research.map( (d) => d.department2 ),
+                         teaching.map( (d) => d.department1 ),
+                         teaching.map( (d) => d.department2 ) )
   let n = dept_names.length
-
-
-  // extract faculty counts per department
-
   let faculty = d3.range(n).map( () => 0 )
-  depts.forEach( (d) => faculty[dept_names.indexOf(d.department)] = d.faculty )
+  depts.forEach( (d) => faculty[ dept_names.indexOf(d.department) ] = d.faculty )
 
 
   // prepare the data matrices
 
-  let sum = (vector) => vector.reduce( (a,b) => a+b, 0.0)
-  let matrix_add = lift( (a,b) => a+b )
-  let matrix_subtract = lift( (a,b) => a-b )
+  const sum = (vector) => vector.reduce( (a,b) => a+b, 0.0 )
+  const matrix_add = lift( (a,b) => a+b )
+  const matrix_subtract = lift( (a,b) => a-b )
 
-  let populate_departments = populate.bind(null, (x) => dept_names.indexOf(x.department1),
-                                                 (x) => dept_names.indexOf(x.department2),
-                                                 (x) => x.links)
+  const populate_departments = populate.bind( null, (x) => dept_names.indexOf(x.department1),
+                                                    (x) => dept_names.indexOf(x.department2),
+                                                    (x) => x.links )
 
   let research_matrix = populate_departments(research, constant_matrix(n))
   let teaching_matrix = populate_departments(teaching, constant_matrix(n))
@@ -82,6 +80,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   let links_sum = links_matrix.map(sum)
   let balance_matrix = matrix_subtract(research_matrix, teaching_matrix)
   let balance_sum = balance_matrix.map(sum)
+
+  let links_max = d3.max(links_matrix, (v) => d3.max(v))
 
 
   // application state
@@ -93,9 +93,10 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   const margins = { top: 0, left: 150, right: 0, bottom: 0 }
   const min_width = 800
-  const firstSlide = 2500
-  const slideSpeed = 7500
-  const orders = [ 'department', 'links', 'emphasis', 'faculty' ]
+
+  const first_slide_pause = 2500
+  const n_slide_pause = 7500
+  const slide_transition_dur = 500
 
 
   let width
@@ -103,29 +104,21 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   let svg = d3.select("body")
     .append("svg")
 
-  svg.append('defs')
-    .append('marker')
-      .attr('id', 'markerCircle')
-      .attr('markerWidth', 3)
-      .attr('markerHeight', 3)
-      .attr('refX', 1.5)
-      .attr('refY', 1.5)
-    .append('circle')
-      .attr('r', 1.5)
-      .attr('cx', 1.5)
-      .attr('cy', 1.5)
-
   let svg_g = svg.append("g")
     .attr("transform", "translate(" + margins.left + "," + margins.top + ")")
 
 
   // timer cycling through orders
 
+  // convention: the timer will not advance while the mouse is hovering over any ele
+  //             with the class "no_advance"
+
   let timeout
 
   function advance() {
-    let i = orders.indexOf(cur_order)
-    let next_order = orders[ (i + 1) % orders.length ]
+    let keys = d3.keys(orders)
+    let i = keys.indexOf(cur_order)
+    let next_order = keys[ (i + 1) % keys.length ]
 
     let hover_count = 0
     d3.select(".no_advance:hover").each( () => ++hover_count )
@@ -134,11 +127,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       show(cur_viz, next_order)
     }
 
-    timeout = setTimeout(advance, slideSpeed)
+    timeout = setTimeout(advance, n_slide_pause)
   }
 
 
-  // transition application state
+  // transition application state and render everything
 
   function show(viz, order) {
     cur_viz = viz
@@ -148,39 +141,41 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   }
 
 
-  // render complete tree of components
+  // render complete tree of visualizations
 
-  const viz_names = {
-    chord: 'By Department',
-    matrix: 'All the Data'
+  const visualizations = {
+    chord: { label: 'By Department', component: render_dual() },
+    matrix: { label: 'All the Data', component: render_matrix() }
   }
 
-  let render = {
-    chord: render_dual(),
-    matrix: render_matrix()
-  }
+  const orders =  {
+    department: 'department',
+    links: 'count of links',
+    emphasis: 'link balance',
+    faculty: 'faculty size' }
+
 
   function render_all() {
     render_viz_selector(cur_viz)
     render_order(cur_order)
 
     let viz = svg_g.selectAll(".viz")
-      .data(d3.keys(render))
+      .data(d3.keys(visualizations))
 
     viz.enter().append("g")
       .attr("class", "viz")
 
     viz.filter( (d) => d === cur_viz)
-       .call(render[cur_viz], cur_order)
+       .call( visualizations[cur_viz].component, cur_order )
 
-    viz.attr('visibility', (d) => d === cur_viz ? 'visible' : 'hidden')
+    viz.attr('visibility', (d) => d === cur_viz ? 'visible' : 'hidden')   // req'd for mouse event handling
        .transition()
-         .duration(500)
+         .duration(slide_transition_dur)
          .attr("opacity", (d) => d === cur_viz ? 1 : 0)
   }
 
 
-  // layout entire application
+  // layout entire application when browser window resized
 
   function relayout(minWidth) {
     minWidth = Math.max(minWidth, min_width)
@@ -189,8 +184,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     svg.attr("width", width)
 
-    d3.keys(render).forEach( (viz) => {
-      render[viz].relayout()
+    d3.keys(visualizations).forEach( (viz) => {
+      visualizations[viz].component.relayout()
     })
   }
 
@@ -200,17 +195,17 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   }
 
 
-  // viz selector
+  // current viz selector
 
   function render_viz_selector(viz) {
     let viz_li = d3.select("#viz ul")
-       .selectAll("li")
-      .data(d3.keys(render))
+        .selectAll("li")
+        .data(d3.keys(visualizations))
 
     viz_li.enter().append("li")
-        .attr("id", (d) => d)
-        .text((d) => viz_names[d])
-       .on("click", (d) => show(d, cur_order))
+        .attr("id", (d) => d )
+        .text( (d) => visualizations[d].label )
+       .on("click", (d) => show(d, cur_order) )
 
     viz_li.classed("selected", (d) => d === viz)
   }
@@ -219,17 +214,31 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   // order selector
 
   function render_order(order) {
+    let order_div = d3.select("#order dd")
+        .selectAll("div")
+        .data(d3.keys(orders))
 
-    // TODO.  generate the order HTML using D3?
+    let order_div_e = order_div.enter().append("div")
+    order_div_e.append("input")
+        .attr("id", (d) => d )
+        .attr("type", "radio")
+        .attr("name", "order")
+        .attr("value", (d) => d)
+    order_div_e.append("label")
+        .attr("for", (d) => d )
+        .text( (d) => orders[d] )
 
-    d3.select('#order input[value="' + order + '"]').property('checked', true)
-
-    d3.select("#order").on("change", function(d) {
-      let order = d3.select('#order :checked').node().value
-      clearTimeout(timeout)
-      show(cur_viz, order)
-    })
+    order_div.select("input")
+        .property("checked", (d) => d === order )
   }
+
+  d3.select("#order").on("change", () => {
+    let new_order = d3.select("#order input:checked").node().value
+    clearTimeout(timeout)
+    if(new_order !== cur_order) {
+      show(cur_viz, new_order)
+    }
+  })
 
 
   // dual-chord viz
@@ -241,7 +250,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     const margins = { top: 80, left: 0, right: 0, bottom: 0 }
 
     const τ = 2 * Math.PI
-    const pie_rotate = τ * 5 / 8          // when ordered, start in lower left corner so labels run downwards
+    const pie_rotate = τ * 5 / 8          // when ordered, start in lower left corner so labels fall downwards
 
     const padAngle = 0.01
     const chordWidth = 0.04
@@ -250,6 +259,15 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     const label_margin = 1.5
     const label_padding = 5
     const title_margin = 20
+    const marker_circle_radius = 1.5
+
+    const label_trim_len = 27
+
+    const defocus_opacity = 0.0625
+    const resting_opacity = 0.8
+    const label_delay = 1500
+    const label_dur = 500
+
 
     let height
 
@@ -267,10 +285,10 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     let chord = d3.svg.chord()
       .radius(chordRadius)
 
-    let dominant_arc = (d) => d3.min([d.source_index, d.target_index])
-    let linked_to = (d, i) => d.source_index === i || d.target_index === i
+    const dominant_arc = (d) => d3.min([d.source_index, d.target_index])
+    const linked_to = (d, i) => d.source_index === i || d.target_index === i
 
-    let arc_center = (d, width) => {
+    const arc_center = (d, width) => {
       width = width || 0.1
       let c = d3.mean([d.startAngle, d.endAngle])
       let s = d3.max([d.startAngle, c - width])
@@ -284,15 +302,16 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       .endAngle(τ + pie_rotate)
       .padAngle(padAngle)
 
-    let sortsum = (a,b) => d3.descending( sum(a), sum(b) )
+    const sortsum = (a,b) => d3.descending( sum(a), sum(b) )
 
     let layouts = {
       department: pie.sort(null).value(Number)( d3.range(0,n).map(d3.functor(1)) ),
       faculty:    pie.sort(d3.ascending).value(Number)( faculty.map( (d) => d || 0) ),
-      links:      pie.sort(sortsum).value(sum)( matrix_add(research_matrix, teaching_matrix) ),
-      emphasis:   pie.sort(sortsum).value(sum)( matrix_subtract(research_matrix, teaching_matrix) )
+      links:      pie.sort(sortsum).value(sum)( links_matrix ),
+      emphasis:   pie.sort(sortsum).value(sum)( balance_matrix )
     }
 
+    // based on position of each node (arc), generate layout for links (chords)
     function calc_links(data, node_positions) {
       let links = []
       let i=-1; while(i++<n-1) {
@@ -310,10 +329,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       return links
     }
 
-    const marker_circle_radius = 1.5
-
     function relayout_labels(nodes) {
-
       // add defs to svg header, if not already present
       if(svg.select('#markerCircle').empty()) {
         svg.append('defs')
@@ -332,24 +348,25 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       // constraint relaxing algorithm for label positions
 
       const sign = (x) => x > 0 ? 1 : -1
-      const spacing = 2  // TODO change to "adjust"
+      const adjust = 2
 
       // returns the upper-left point in the rectangle
       // negative sizes indicate label's origin is on opposite side
-      function attach_point(point, size) {
+      const attach_point = (point, size) => {
         let attach = point.slice()
         attach[0] += Math.min(0, size[0])
         attach[1] += Math.min(0, size[1])
         return attach
       }
 
-      function rect_intersect(point1, size1, point2, size2) {
+      // check if two rectangles intersect,
+      const rect_intersect = (point1, size1, point2, size2, tolerance = 0) => {
         let r1 = { x1: point1[0], y1: point1[1], x2: point1[0] + size1[0], y2: point1[1] + size1[1] }
         let r2 = { x1: point2[0], y1: point2[1], x2: point2[0] + size2[0], y2: point2[1] + size2[1] }
-        let separate = /* left */  Math.max(r1.x1, r1.x2) + label_margin < Math.min(r2.x1, r2.x2) - label_margin ||
-                       /* above */ Math.max(r1.y1, r1.y2) + label_margin < Math.min(r2.y1, r2.y2) - label_margin ||
-                       /* right */ Math.min(r1.x1, r1.x2) - label_margin > Math.max(r2.x1, r2.x2) + label_margin ||
-                       /* below */ Math.min(r1.y1, r1.y2) - label_margin > Math.max(r2.y1, r2.y2) + label_margin
+        let separate = /* left */  Math.max(r1.x1, r1.x2) + tolerance < Math.min(r2.x1, r2.x2) - tolerance ||
+                       /* above */ Math.max(r1.y1, r1.y2) + tolerance < Math.min(r2.y1, r2.y2) - tolerance ||
+                       /* right */ Math.min(r1.x1, r1.x2) - tolerance > Math.max(r2.x1, r2.x2) + tolerance ||
+                       /* below */ Math.min(r1.y1, r1.y2) - tolerance > Math.max(r2.y1, r2.y2) + tolerance
         return !separate
       }
 
@@ -362,10 +379,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         return in_circle(x1, y1) || in_circle(x1, y2) || in_circle(x2, y2) || in_circle(x2, y1)
       }
 
-      let labels = nodes.select('text')
-
       // unconventional use of D3: because bounding box isn't available until text node added to DOM,
       // we do final updates of the layout inside D3 join
+      let labels = nodes.select('text')
       labels.each( function(d) {
         let bbox = this.getBBox()
         d.labelPosition = label_arc.centroid(d)
@@ -394,7 +410,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         relaxing = false
         nodes.each( (d0,i0) => {
           if(circle_intersect(d0.labelPosition, d0.labelSize, [0,0], labelRadius)) {
-            d0.labelPosition[1] += sign(d0.labelPosition[1]) * spacing
+            d0.labelPosition[1] += sign(d0.labelPosition[1]) * adjust
             relaxing = true
           }
         })
@@ -407,14 +423,16 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
           nodes.each( (d1,i1) => {
             if(i0===i1) return
             if(!rect_intersect(d0.labelPosition, d0.labelSize,
-                               d1.labelPosition, d1.labelSize)) return
+                               d1.labelPosition, d1.labelSize, label_margin)) return
             // only nudge the outermost of the two labels
             if(!(Math.abs(d0.labelPosition[0]) < Math.abs(d1.labelPosition[0]))) return
-            d1.labelPosition[1] += sign(d1.labelPosition[1]) * spacing
+            d1.labelPosition[1] += sign(d1.labelPosition[1]) * adjust
             relaxing = true
           })
         })
       }
+
+      // transfer layout into DOM
 
       labels
         .attr('transform', (d) => 'translate(' + attach_point(d.labelPosition, d.labelSize) + ')')
@@ -434,12 +452,30 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     }
 
+    function install_defs(g) {
+      if(svg.select('#markerCircle').empty()) {
+        svg.append('defs')
+          .append('marker')
+            .attr('id', 'markerCircle')
+            .attr('markerWidth', 3)
+            .attr('markerHeight', 3)
+            .attr('refX', 1.5)
+            .attr('refY', 1.5)
+          .append('circle')
+            .attr('r', 1.5)
+            .attr('cx', 1.5)
+            .attr('cy', 1.5)
+      }
+    }
+
     function update(g, order) {
+      // ensure svg defs declared
+      install_defs(g)
 
       // update chords layout
       let node_positions = layouts[order]
 
-      // transition nodes (department arcs)
+      // transition nodes (i.e. department arcs)
 
       let node = g.selectAll(".dept")
           .data(node_positions)
@@ -470,11 +506,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
           })
 
       node.select("text")
-        .text( (d, i) => trim(dept_names[i], 27))
+        .text( (d, i) => trim(dept_names[i], label_trim_len))
 
       node.call(relayout_labels)
 
-      // transition links (chords)
+      // transition chords (i.e. cross-department links)
 
       let link = g.selectAll(".link")
           .data((matrix) => calc_links(matrix, node_positions),
@@ -490,11 +526,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         .append("path")
           .attr("class", "link")
           .attr("fill", (d) => fill(dominant_arc(d)))
-          .attr("opacity", 0)
+          .attr("opacity", resting_opacity)
 
       link.transition()
         .duration(mode_dur)
-          .attr("opacity", 1)
+          .attr("opacity", resting_opacity)
           .attrTween("d", function(d) { // "this" below requires function...
             let interp = d3.interpolate(this._current || d, d)
             this._current = d
@@ -523,11 +559,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       g.transition()
         .selectAll(".link")
-          .attr("opacity", (d,i) => linked_to(d, i0) ? 1 : 0.025)
+          .attr("opacity", (d,i) => linked_to(d, i0) ? 1 : defocus_opacity)
 // TODO.  use gradients instead
 //          .attr("fill", (d) => linked_to(d, i0) ? fill(i0) : fill(dominant_arc(d, i0)) )
 
-      let trans = g.transition().delay(1500).duration(500)
+      let trans = g.transition().delay(label_delay).duration(label_dur)
 
       trans.selectAll(".dept .label_info")
            .attr("opacity", (d,i) => affiliated.has(i) || i === i0 ? 1 : 0)
@@ -543,12 +579,12 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       g.transition().selectAll(".dept .label_info")
         .attr("opacity", 0)
 
-      let trans = g.transition().delay(500)
+      let trans = g.transition().delay(label_dur)
 
       trans.selectAll(".link")
 // TODO.  use gradients instead
 //        .attr("fill", (d) => fill(dominant_arc(d)))
-          .attr("opacity", 0.9)
+          .attr("opacity", resting_opacity)
 
       trans.select(".title")
            .attr("opacity", 1)
@@ -613,21 +649,32 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   }
 
 
+  // matrix viz
+
+
   function render_matrix() {
 
     const margins = { top: 110, left: 0, right: 300, bottom: 0 }
+    const tick_margins = { top: 50, left: 8, right: 0, bottom: 0 }
+    const tick2_margins = { top: 230, left: 8, right: 0, bottom: 0 }
 
+    const axis_width = 200
+
+    const legend_width = 150
     const legend_cell = 7
     const legend_packing = 1
-    const cell_packing = 4 // should be ceiling(sqrt(max count of links))
-    const cell_padding = 1
-    const stroke_width = 1.0
-    const trim_value = 27
-    const research_color_1 = "red"
-    const research_color_2 = "yellow"
-    const neutral_color = "gray"
+    const label_trim_value = 27
+
+    const mode_dur = 2500
+
+    const colors = // NB hand-tweaked for this dataset!
+      [ [-9,  "#35b7e5"],
+        [-2,  "#35b7e5"],
+        [0,   "gray"],
+        [4.5, "red"],
+        [9,   "yellow"] ]
+
     const empty_color = "#dadad9"
-    const teaching_color = "#35b7e5"
 
     const points = d3.merge(d3.range(n).map( (i) => d3.range(n).map( (j) => {
       return { i: i, j: j}
@@ -643,13 +690,14 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     let scale = d3.scale.ordinal()
 
     let colorscale = d3.scale.linear()
-      .domain([-9, -2, 0, 4.5, 9])
-      .range([teaching_color, teaching_color, neutral_color, research_color_1, research_color_2])
+      .domain(colors.map( (d) => d[0] ))
+      .range(colors.map( (d) => d[1] ))
 
     let sizescale = d3.scale.linear()
-      .domain([0, 11])  // should be max count of links
+      .domain([0, links_max-1])
 
     let csd = colorscale.domain()
+
 
     let immediate = true
 
@@ -657,8 +705,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       // margins
 
-      // TODO.  not best to use a global here
-      svg.attr('height', width - margins.bottom)
+      svg.attr('height', width - margins.bottom)      // TODO. avoid global DOM alteration
 
       g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')')
 
@@ -716,14 +763,14 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       xlabs.append("rect")
         .attr("fill", "transparent")
-        .attr("width", 200)
+        .attr("width", axis_width)
         .attr("height", scale.rangeBand())
 
       xlabs.append("text")
         .attr("class", (d, i) => "dept" + i)
         .attr("dominant-baseline", "middle")
         .attr("dy", scale.rangeBand() / 2.0)
-        .text( (d) => trim(d, trim_value))
+        .text( (d) => trim(d, label_trim_value))
         .attr("fill", "black")
 
       xlabs.call(highlight.bind(null, "x_"))
@@ -736,14 +783,14 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       ylabs.append("rect")
         .attr("fill", "transparent")
-        .attr("width", 200)
+        .attr("width", axis_width)
         .attr("height", scale.rangeBand())
 
       ylabs.append("text")
         .attr("class", (d,i) => "dept" + i)
         .attr("dominant-baseline", "middle")
         .attr("dy", scale.rangeBand() / 2.0)
-        .text( (d) => trim(d, trim_value))
+        .text( (d) => trim(d, label_trim_value))
         .attr("fill", "black")
 
       ylabs.call(highlight.bind(null, "y_"))
@@ -754,7 +801,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
           .data(d3.range(d3.min(csd), d3.max(csd)))
         .enter().append("g")
           .attr("class", "tick")
-          .attr("transform", (d,i) => "translate(" + [-150 + 8, 50 + (legend_cell + legend_packing) * i] +  ")")
+          .attr("transform", (d,i) => "translate(" + [-legend_width + tick_margins.left, tick_margins.top + (legend_cell + legend_packing) * i] +  ")")
 
       tick.append("rect")
             .attr("width", legend_cell)
@@ -773,14 +820,14 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
          .data(d3.range(ssd[0], ssd[1], 2))
         .enter().append("g")
          .attr("class", "tick2")
-         .attr("transform", (d,i) => "translate(" + [-150 + 8, scale.rangeBand() * i + 230] + ")")
+         .attr("transform", (d,i) => "translate(" + [-legend_width + tick_margins.left, tick2_margins.top + scale.rangeBand() * i] + ")")
 
       tick2.append("rect")
          .attr("x", (d,i) => scale.rangeBand() / 2.0 - sizescale(i) / 2.0)
          .attr("y", (d,i) => scale.rangeBand() / 2.0 - sizescale(i) / 2.0)
          .attr("width", (d,i) => sizescale(i) )
          .attr("height", (d,i) => sizescale(i) )
-         .attr("fill", neutral_color)
+         .attr("fill", "grey")
 
       tick2.append("text")
         .attr("dx", scale.rangeBand() * 1.2)
@@ -800,18 +847,19 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       // animation
 
-      let trans = g.transition().duration(immediate ? 0 : 2500)
+      let trans = g.transition()
+          .duration(immediate ? 0 : mode_dur)
 
       trans.selectAll(".x.labels")
-          .delay(function(d, i) { return immediate ? 0 : scale(i) * 4; })
+          .delay( (d, i) => immediate ? 0 : scale(i) * 4 )
           .attr("transform", (d, i) => "translate(" + (scale(i) + 5) + ",-15)rotate(-45)")
 
       trans.selectAll(".cell")
-            .delay(function(d) { return immediate ? 0 : scale(d.i) * 4; })
+            .delay( (d) => immediate ? 0 : scale(d.i) * 4 )
             .attr("transform", (d) => "translate(" + scale(d.i) + "," + scale(d.j) + ")" )
 
       trans.selectAll(".y.labels")
-          .delay(function(d, i) { return immediate ? 0 : scale(i) * 4; })
+          .delay( (d, i) => immediate ? 0 : scale(i) * 4 )
           .attr("transform", (d,i) => "translate(" + (width - margins.right - margins.left) + "," + scale(i) + ")")
 
       immediate = false
@@ -840,7 +888,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   relayout(window.innerWidth)
   show('chord', 'department')
-  timeout = setTimeout(advance, firstSlide)
+  timeout = setTimeout(advance, first_slide_pause)
 
 })
 
@@ -853,6 +901,14 @@ function trim(s, n) {
 
 function to_class(s) {
   return s.toLowerCase().replace(/\W/g, '_')
+}
+
+function uniq() {
+  let vals = []
+  for(let i=0; i<arguments.length; i++) {
+    vals = vals.concat(arguments[i])
+  }
+  return d3.set(vals).values()
 }
 
 // Matrix manipulation
