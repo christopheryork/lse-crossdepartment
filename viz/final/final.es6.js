@@ -18,7 +18,7 @@
 //   - shouldn't advance modes during hover on a department               DONE
 //   - faculty sorting for dual chord                                     DONE
 
-//   - non-directed graph, so chords should be gradient colored
+//   - non-directed graph, so chords should be gradient colored           DONE
 //   - problems mousing in and out of chords / out of sync                DONE
 //   - labels should only appear for local chords                         DONE
 //   - arcs should transition in a progressive fashion?
@@ -32,6 +32,7 @@
 //   - outer margins need adjusting                                       DONE
 //   - minimum sizes for each visualization                               DONE
 //   - keep viz selector on the same line when window small               DONE
+//   - chords slow with gradients turned on
 
 //   - matrix needs to rescale after window resize                        DONE
 //   - matrix is cut off on right
@@ -285,7 +286,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     let chord = d3.svg.chord()
       .radius(chordRadius)
 
-    const dominant_arc = (d) => d3.min([d.source_index, d.target_index])
     const linked_to = (d, i) => d.source_index === i || d.target_index === i
 
     const arc_center = (d, width) => {
@@ -454,8 +454,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     function install_defs(g) {
       if(svg.select('#markerCircle').empty()) {
-        svg.append('defs')
-          .append('marker')
+        let defs = svg.append('defs')
+        defs.append('marker')
             .attr('id', 'markerCircle')
             .attr('markerWidth', 3)
             .attr('markerHeight', 3)
@@ -486,7 +486,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
           .attr("class", (d) => "dept no_advance")
 
       node_g.append("path")
-        .attr("fill", (d,i) => fill(i))
+        .attr("fill", (d,i) => fill(i) )
 
       let label_info = node_g.append("g")
         .attr("class", "label_info")
@@ -512,9 +512,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       // transition chords (i.e. cross-department links)
 
+      const percent = d3.format("%")
+
       let link = g.selectAll(".link")
-          .data((matrix) => calc_links(matrix, node_positions),
-                (d) => [d.source_index, d.target_index].join("x"))
+          .data( (matrix) => calc_links(matrix, node_positions),
+                 (d) => [d.source_index, d.target_index].join("x") )
 
       link.exit()
         .transition()
@@ -522,20 +524,40 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
           .attr("opacity", 0)
         .remove()
 
-      link.enter()
-        .append("path")
-          .attr("class", "link")
-          .attr("fill", (d) => fill(dominant_arc(d)))
+      let link_e = link.enter()
+          .append("g")
+        .attr("class", "link")
+
+      link_e.append("defs")
+          .append("linearGradient")
+            .attr("id", (d,i) => "gradient" + i )
+            .attr("gradientUnits", "userSpaceOnUse")
+      link_e.append("path")
+          .attr("fill", (d,i) => "url(#gradient" + i + ")" )
           .attr("opacity", resting_opacity)
+
+      let gradient = link.select("linearGradient")
+      gradient.attr("x1", (d) => arc.centroid(d.source)[0] )
+              .attr("y1", (d) => arc.centroid(d.source)[1] )
+              .attr("x2", (d) => arc.centroid(d.target)[0] )
+              .attr("y2", (d) => arc.centroid(d.target)[1] )
+
+      let stop = gradient.selectAll("stop")
+        .data( (d) => [d.source_index, d.target_index] )
+      stop.exit().remove()
+      stop.enter().append("stop")
+      stop.attr("offset", (d,i) => percent(i) )
+      stop.attr("stop-color", (d) => fill(d) )
 
       link.transition()
         .duration(mode_dur)
           .attr("opacity", resting_opacity)
-          .attrTween("d", function(d) { // "this" below requires function...
-            let interp = d3.interpolate(this._current || d, d)
-            this._current = d
-            return (t) => chord(interp(t))
-          })
+          .select("path")
+            .attrTween("d", function(d) { // "this" below requires function...
+              let interp = d3.interpolate(this._current || d, d)
+              this._current = d
+              return (t) => chord(interp(t))
+            })
     }
 
     function focus(g, d0, i0) {

@@ -18,7 +18,7 @@
 //   - shouldn't advance modes during hover on a department               DONE
 //   - faculty sorting for dual chord                                     DONE
 
-//   - non-directed graph, so chords should be gradient colored
+//   - non-directed graph, so chords should be gradient colored           DONE
 //   - problems mousing in and out of chords / out of sync                DONE
 //   - labels should only appear for local chords                         DONE
 //   - arcs should transition in a progressive fashion?
@@ -32,6 +32,7 @@
 //   - outer margins need adjusting                                       DONE
 //   - minimum sizes for each visualization                               DONE
 //   - keep viz selector on the same line when window small               DONE
+//   - chords slow with gradients turned on
 
 //   - matrix needs to rescale after window resize                        DONE
 //   - matrix is cut off on right
@@ -301,9 +302,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
     var chord = d3.svg.chord().radius(chordRadius);
 
-    var dominant_arc = function dominant_arc(d) {
-      return d3.min([d.source_index, d.target_index]);
-    };
     var linked_to = function linked_to(d, i) {
       return d.source_index === i || d.target_index === i;
     };
@@ -472,7 +470,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
     function install_defs(g) {
       if (svg.select('#markerCircle').empty()) {
-        svg.append('defs').append('marker').attr('id', 'markerCircle').attr('markerWidth', 3).attr('markerHeight', 3).attr('refX', 1.5).attr('refY', 1.5).append('circle').attr('r', 1.5).attr('cx', 1.5).attr('cy', 1.5);
+        var defs = svg.append('defs');
+        defs.append('marker').attr('id', 'markerCircle').attr('markerWidth', 3).attr('markerHeight', 3).attr('refX', 1.5).attr('refY', 1.5).append('circle').attr('r', 1.5).attr('cx', 1.5).attr('cy', 1.5);
       }
     }
 
@@ -520,6 +519,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       // transition chords (i.e. cross-department links)
 
+      var percent = d3.format("%");
+
       var link = g.selectAll(".link").data(function (matrix) {
         return calc_links(matrix, node_positions);
       }, function (d) {
@@ -528,11 +529,39 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       link.exit().transition().duration(mode_dur).attr("opacity", 0).remove();
 
-      link.enter().append("path").attr("class", "link").attr("fill", function (d) {
-        return fill(dominant_arc(d));
+      var link_e = link.enter().append("g").attr("class", "link");
+
+      link_e.append("defs").append("linearGradient").attr("id", function (d, i) {
+        return "gradient" + i;
+      }).attr("gradientUnits", "userSpaceOnUse");
+      link_e.append("path").attr("fill", function (d, i) {
+        return "url(#gradient" + i + ")";
       }).attr("opacity", resting_opacity);
 
-      link.transition().duration(mode_dur).attr("opacity", resting_opacity).attrTween("d", function (d) {
+      var gradient = link.select("linearGradient");
+      gradient.attr("x1", function (d) {
+        return arc.centroid(d.source)[0];
+      }).attr("y1", function (d) {
+        return arc.centroid(d.source)[1];
+      }).attr("x2", function (d) {
+        return arc.centroid(d.target)[0];
+      }).attr("y2", function (d) {
+        return arc.centroid(d.target)[1];
+      });
+
+      var stop = gradient.selectAll("stop").data(function (d) {
+        return [d.source_index, d.target_index];
+      });
+      stop.exit().remove();
+      stop.enter().append("stop");
+      stop.attr("offset", function (d, i) {
+        return percent(i);
+      });
+      stop.attr("stop-color", function (d) {
+        return fill(d);
+      });
+
+      link.transition().duration(mode_dur).attr("opacity", resting_opacity).select("path").attrTween("d", function (d) {
         // "this" below requires function...
         var interp = d3.interpolate(this._current || d, d);
         this._current = d;
