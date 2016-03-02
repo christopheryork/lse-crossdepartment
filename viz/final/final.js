@@ -23,7 +23,7 @@
 //   - labels should only appear for local chords                         DONE
 //   - arcs should transition in a progressive fashion?
 //   - space for labels at top of chords                                  DONE
-//   - when a transition occurs during a hover, chords go out of order
+//   - when a transition occurs during a hover, chords go out of order    DONE
 //   - put values next to departments                                     DONE
 //   - move viz selector into title line                                  DONE
 //   - add "explore the data" to title                                    DONE
@@ -517,7 +517,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       node.exit().remove(); // never actually used
 
       var node_g = node.enter().append("g").attr("class", function (d) {
-        return "dept no_advance";
+        return "dept";
       });
 
       node_g.append("path").attr("fill", function (d, i) {
@@ -672,7 +672,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       var chord = g.selectAll(".chord").data([research_matrix, teaching_matrix]);
 
-      chord.enter().append("g").attr("class", "chord").append("text").attr("class", "title").attr("text-anchor", "middle").text(function (d, i) {
+      chord.enter().append("g").attr("class", "chord no_advance").append("text").attr("class", "title").attr("text-anchor", "middle").text(function (d, i) {
         return matrix_titles[i];
       });
 
