@@ -32,10 +32,10 @@
 //   - outer margins need adjusting                                       DONE
 //   - minimum sizes for each visualization                               DONE
 //   - keep viz selector on the same line when window small               DONE
-//   - chords slow with gradients turned on
+//   - chords slow with gradients turned on                               DONE
 
 //   - matrix needs to rescale after window resize                        DONE
-//   - matrix is cut off on right
+//   - matrix is cut off on right                                         OLD PROBLEM
 //   - matrix should scroll with labels?
 
 "use strict";
@@ -453,8 +453,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     }
 
     function install_defs(g) {
-      if(svg.select('#markerCircle').empty()) {
-        let defs = svg.append('defs')
+      let defs = g.select('defs')
+      if(defs.empty()) {
+        defs = g.append('defs')
         defs.append('marker')
             .attr('id', 'markerCircle')
             .attr('markerWidth', 3)
@@ -466,11 +467,13 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
             .attr('cx', 1.5)
             .attr('cy', 1.5)
       }
+      return defs
     }
 
     function update(g, order) {
+
       // ensure svg defs declared
-      install_defs(g)
+      let defs = install_defs(g)
 
       // update chords layout
       let node_positions = layouts[order]
@@ -510,33 +513,23 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       node.call(relayout_labels)
 
-      // transition chords (i.e. cross-department links)
+      // set up for chords
+      //
+      // TODO.  preferable not to calculate the link layout twice...
 
       const percent = d3.format("%")
 
-      let link = g.selectAll(".link")
-          .data( (matrix) => calc_links(matrix, node_positions),
-                 (d) => [d.source_index, d.target_index].join("x") )
+      const link_id = (d) => [d.source_index, d.target_index].join("x")
 
-      link.exit()
-        .transition()
-          .duration(mode_dur)
-          .attr("opacity", 0)
-        .remove()
+      let gradient = defs.selectAll("linearGradient")
+          .data( (matrix) => calc_links(matrix, node_positions), link_id )
 
-      let link_e = link.enter()
-          .append("g")
-        .attr("class", "link")
+      gradient.exit().remove()
 
-      link_e.append("defs")
-          .append("linearGradient")
-            .attr("id", (d,i) => "gradient" + i )
-            .attr("gradientUnits", "userSpaceOnUse")
-      link_e.append("path")
-          .attr("fill", (d,i) => "url(#gradient" + i + ")" )
-          .attr("opacity", resting_opacity)
+      var gradient_e = gradient.enter().append("linearGradient")
+        .attr("id", (d) => "gradient-" + link_id(d) )
+        .attr("gradientUnits", "userSpaceOnUse")
 
-      let gradient = link.select("linearGradient")
       gradient.attr("x1", (d) => arc.centroid(d.source)[0] )
               .attr("y1", (d) => arc.centroid(d.source)[1] )
               .attr("x2", (d) => arc.centroid(d.target)[0] )
@@ -549,15 +542,30 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       stop.attr("offset", (d,i) => percent(i) )
       stop.attr("stop-color", (d) => fill(d) )
 
+      // transition chords (i.e. cross-department links)
+
+      let link = g.selectAll(".link")
+          .data( (matrix) => calc_links(matrix, node_positions), link_id )
+
+      link.exit()
+        .transition()
+          .duration(mode_dur)
+          .attr("opacity", 0)
+        .remove()
+
+      link.enter().append("path")
+        .attr("class", "link")
+        .attr("fill", (d,i) => "url(#gradient-" + link_id(d) + ")" )
+        .attr("opacity", resting_opacity)
+
       link.transition()
         .duration(mode_dur)
           .attr("opacity", resting_opacity)
-          .select("path")
-            .attrTween("d", function(d) { // "this" below requires function...
-              let interp = d3.interpolate(this._current || d, d)
-              this._current = d
-              return (t) => chord(interp(t))
-            })
+          .attrTween("d", function(d) { // "this" below requires function...
+            let interp = d3.interpolate(this._current || d, d)
+            this._current = d
+            return (t) => chord(interp(t))
+          })
     }
 
     function focus(g, d0, i0) {

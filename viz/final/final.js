@@ -32,10 +32,10 @@
 //   - outer margins need adjusting                                       DONE
 //   - minimum sizes for each visualization                               DONE
 //   - keep viz selector on the same line when window small               DONE
-//   - chords slow with gradients turned on
+//   - chords slow with gradients turned on                               DONE
 
 //   - matrix needs to rescale after window resize                        DONE
-//   - matrix is cut off on right
+//   - matrix is cut off on right                                         OLD PROBLEM
 //   - matrix should scroll with labels?
 
 "use strict";
@@ -469,15 +469,18 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     }
 
     function install_defs(g) {
-      if (svg.select('#markerCircle').empty()) {
-        var defs = svg.append('defs');
+      var defs = g.select('defs');
+      if (defs.empty()) {
+        defs = g.append('defs');
         defs.append('marker').attr('id', 'markerCircle').attr('markerWidth', 3).attr('markerHeight', 3).attr('refX', 1.5).attr('refY', 1.5).append('circle').attr('r', 1.5).attr('cx', 1.5).attr('cy', 1.5);
       }
+      return defs;
     }
 
     function update(g, order) {
+
       // ensure svg defs declared
-      install_defs(g);
+      var defs = install_defs(g);
 
       // update chords layout
       var node_positions = layouts[order];
@@ -517,28 +520,26 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       node.call(relayout_labels);
 
-      // transition chords (i.e. cross-department links)
+      // set up for chords
+      //
+      // TODO.  preferable not to calculate the link layout twice...
 
       var percent = d3.format("%");
 
-      var link = g.selectAll(".link").data(function (matrix) {
-        return calc_links(matrix, node_positions);
-      }, function (d) {
+      var link_id = function link_id(d) {
         return [d.source_index, d.target_index].join("x");
-      });
+      };
 
-      link.exit().transition().duration(mode_dur).attr("opacity", 0).remove();
+      var gradient = defs.selectAll("linearGradient").data(function (matrix) {
+        return calc_links(matrix, node_positions);
+      }, link_id);
 
-      var link_e = link.enter().append("g").attr("class", "link");
+      gradient.exit().remove();
 
-      link_e.append("defs").append("linearGradient").attr("id", function (d, i) {
-        return "gradient" + i;
+      var gradient_e = gradient.enter().append("linearGradient").attr("id", function (d) {
+        return "gradient-" + link_id(d);
       }).attr("gradientUnits", "userSpaceOnUse");
-      link_e.append("path").attr("fill", function (d, i) {
-        return "url(#gradient" + i + ")";
-      }).attr("opacity", resting_opacity);
 
-      var gradient = link.select("linearGradient");
       gradient.attr("x1", function (d) {
         return arc.centroid(d.source)[0];
       }).attr("y1", function (d) {
@@ -561,7 +562,19 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return fill(d);
       });
 
-      link.transition().duration(mode_dur).attr("opacity", resting_opacity).select("path").attrTween("d", function (d) {
+      // transition chords (i.e. cross-department links)
+
+      var link = g.selectAll(".link").data(function (matrix) {
+        return calc_links(matrix, node_positions);
+      }, link_id);
+
+      link.exit().transition().duration(mode_dur).attr("opacity", 0).remove();
+
+      link.enter().append("path").attr("class", "link").attr("fill", function (d, i) {
+        return "url(#gradient-" + link_id(d) + ")";
+      }).attr("opacity", resting_opacity);
+
+      link.transition().duration(mode_dur).attr("opacity", resting_opacity).attrTween("d", function (d) {
         // "this" below requires function...
         var interp = d3.interpolate(this._current || d, d);
         this._current = d;
