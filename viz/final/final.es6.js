@@ -24,7 +24,7 @@
 //   - arcs should transition in a progressive fashion?
 //   - space for labels at top of chords                                  DONE
 //   - when a transition occurs during a hover, chords go out of order
-//   - put values next to departments
+//   - put values next to departments                                     DONE
 //   - move viz selector into title line                                  DONE
 //   - add "explore the data" to title                                    DONE
 //   - add "research" & "teaching" titles to chord diagrams               DONE
@@ -37,6 +37,8 @@
 //   - matrix needs to rescale after window resize                        DONE
 //   - matrix is cut off on right                                         OLD PROBLEM
 //   - matrix should scroll with labels?
+
+//   - small multiples with new label layout scheme
 
 "use strict";
 
@@ -149,12 +151,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     matrix: { label: 'All the Data', component: render_matrix() }
   }
 
-  const orders =  {
-    department: 'department',
-    links: 'count of links',
-    emphasis: 'link balance',
-    faculty: 'faculty size' }
-
 
   function render_all() {
     render_viz_selector(cur_viz)
@@ -214,6 +210,19 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   // order selector
 
+  const orders =  {
+    department: { label: 'department', metric: (i) => dept_names[i], sort: d3.ascending },
+    links: { label: 'count of links', metric: (i) => links_sum[i], sort: d3.descending },
+    emphasis: { label: 'link balance', metric: (i) => { let n = balance_sum[i]; return n<0 ? n+" T" : n>0 ? n+" R" : "0" }, sort: d3.ascending },
+    faculty: { label: 'faculty size', metric: (i) => faculty[i], sort: d3.descending }
+  }
+
+  let depts_by_metric = {}
+  d3.keys(orders).forEach( (key) => {
+    let config = orders[key]
+    depts_by_metric[key] = d3.range(n).sort( (a,b) => config.sort( config.metric(a), config.metric(b) ))
+  })
+
   function render_order(order) {
     let order_div = d3.select("#order dd")
         .selectAll("div")
@@ -227,7 +236,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         .attr("value", (d) => d)
     order_div_e.append("label")
         .attr("for", (d) => d )
-        .text( (d) => orders[d] )
+        .text( (d) => orders[d].label )
 
     order_div.select("input")
         .property("checked", (d) => d === order )
@@ -304,12 +313,14 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     const sortsum = (a,b) => d3.descending( sum(a), sum(b) )
 
+    // TODO.  use depts_by_metric?
     let layouts = {
       department: pie.sort(null).value(Number)( d3.range(0,n).map(d3.functor(1)) ),
       faculty:    pie.sort(d3.ascending).value(Number)( faculty.map( (d) => d || 0) ),
       links:      pie.sort(sortsum).value(sum)( links_matrix ),
       emphasis:   pie.sort(sortsum).value(sum)( balance_matrix )
     }
+
 
     // based on position of each node (arc), generate layout for links (chords)
     function calc_links(data, node_positions) {
@@ -478,6 +489,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       // update chords layout
       let node_positions = layouts[order]
 
+      // label formatter
+      let label_fmt = (d,i) => trim(dept_names[i], label_trim_len, orders[order].metric(i))
+
       // transition nodes (i.e. department arcs)
 
       let node = g.selectAll(".dept")
@@ -509,7 +523,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
           })
 
       node.select("text")
-        .text( (d, i) => trim(dept_names[i], label_trim_len))
+        .text(label_fmt)
 
       node.call(relayout_labels)
 
@@ -710,13 +724,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       return { i: i, j: j}
     })))
 
-    let orders = {
-      department: d3.range(n).sort( (a, b) => d3.ascending(dept_names[a], dept_names[b])),
-      faculty: d3.range(n).sort( (a, b) => faculty[b] - faculty[a] ),
-      links: d3.range(n).sort( (a, b) => links_sum[b] - links_sum[a] ),
-      emphasis: d3.range(n).sort( (a, b) => balance_sum[b] - balance_sum[a])
-    }
-
     let scale = d3.scale.ordinal()
 
     let colorscale = d3.scale.linear()
@@ -739,7 +746,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')')
 
-      scale.domain(orders[order])
+      scale.domain(depts_by_metric[order])
 
       sizescale.range([3, scale.rangeBand()])
 
@@ -785,25 +792,29 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       // rules (nodes)
 
+      let label_fmt = (d,i) => trim(d, label_trim_value, orders[order].metric(i))
+
       let xlabs = g.selectAll(".x.labels")
         .data(dept_names)
-       .enter().append("g")
+
+      let xlabs_e = xlabs.enter().append("g")
         .attr("class", "x labels no_advance")
         .attr("transform", (d, i) => "translate(" + (scale(i) + 5) + ",-15)rotate(-45)")
 
-      xlabs.append("rect")
+      xlabs_e.append("rect")
         .attr("fill", "transparent")
         .attr("width", axis_width)
         .attr("height", scale.rangeBand())
 
-      xlabs.append("text")
+      xlabs_e.append("text")
         .attr("class", (d, i) => "dept" + i)
         .attr("dominant-baseline", "middle")
         .attr("dy", scale.rangeBand() / 2.0)
-        .text( (d) => trim(d, label_trim_value))
         .attr("fill", "black")
 
-      xlabs.call(highlight.bind(null, "x_"))
+      xlabs_e.call(highlight.bind(null, "x_"))
+
+      xlabs.select("text").text(label_fmt)
 
       let ylabs = g.selectAll(".y.labels")
         .data(dept_names)
@@ -820,7 +831,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         .attr("class", (d,i) => "dept" + i)
         .attr("dominant-baseline", "middle")
         .attr("dy", scale.rangeBand() / 2.0)
-        .text( (d) => trim(d, label_trim_value))
+        .text(label_fmt)
         .attr("fill", "black")
 
       ylabs.call(highlight.bind(null, "y_"))
@@ -925,8 +936,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
 // Utility functions
 
-function trim(s, n) {
-  return (s.length > n) ? (s.slice(0,n-3)+"...") : s
+function trim(s, n, m=null) {
+  m = m===s ? null : m
+  m = m ? " [" + m + "]" : ""
+  s = (s.length + m.length > n) ? (s.slice(0,n-m.length-3) + "...") : s
+  return s + m
 }
 
 function to_class(s) {

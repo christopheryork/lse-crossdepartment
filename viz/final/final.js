@@ -24,7 +24,7 @@
 //   - arcs should transition in a progressive fashion?
 //   - space for labels at top of chords                                  DONE
 //   - when a transition occurs during a hover, chords go out of order
-//   - put values next to departments
+//   - put values next to departments                                     DONE
 //   - move viz selector into title line                                  DONE
 //   - add "explore the data" to title                                    DONE
 //   - add "research" & "teaching" titles to chord diagrams               DONE
@@ -37,6 +37,8 @@
 //   - matrix needs to rescale after window resize                        DONE
 //   - matrix is cut off on right                                         OLD PROBLEM
 //   - matrix should scroll with labels?
+
+//   - small multiples with new label layout scheme
 
 "use strict";
 
@@ -169,12 +171,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     matrix: { label: 'All the Data', component: render_matrix() }
   };
 
-  var orders = {
-    department: 'department',
-    links: 'count of links',
-    emphasis: 'link balance',
-    faculty: 'faculty size' };
-
   function render_all() {
     render_viz_selector(cur_viz);
     render_order(cur_order);
@@ -234,6 +230,29 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   // order selector
 
+  var orders = {
+    department: { label: 'department', metric: function metric(i) {
+        return dept_names[i];
+      }, sort: d3.ascending },
+    links: { label: 'count of links', metric: function metric(i) {
+        return links_sum[i];
+      }, sort: d3.descending },
+    emphasis: { label: 'link balance', metric: function metric(i) {
+        var n = balance_sum[i];return n < 0 ? n + " T" : n > 0 ? n + " R" : "0";
+      }, sort: d3.ascending },
+    faculty: { label: 'faculty size', metric: function metric(i) {
+        return faculty[i];
+      }, sort: d3.descending }
+  };
+
+  var depts_by_metric = {};
+  d3.keys(orders).forEach(function (key) {
+    var config = orders[key];
+    depts_by_metric[key] = d3.range(n).sort(function (a, b) {
+      return config.sort(config.metric(a), config.metric(b));
+    });
+  });
+
   function render_order(order) {
     var order_div = d3.select("#order dd").selectAll("div").data(d3.keys(orders));
 
@@ -246,7 +265,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     order_div_e.append("label").attr("for", function (d) {
       return d;
     }).text(function (d) {
-      return orders[d];
+      return orders[d].label;
     });
 
     order_div.select("input").property("checked", function (d) {
@@ -321,6 +340,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       return d3.descending(sum(a), sum(b));
     };
 
+    // TODO.  use depts_by_metric?
     var layouts = {
       department: pie.sort(null).value(Number)(d3.range(0, n).map(d3.functor(1))),
       faculty: pie.sort(d3.ascending).value(Number)(faculty.map(function (d) {
@@ -485,6 +505,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       // update chords layout
       var node_positions = layouts[order];
 
+      // label formatter
+      var label_fmt = function label_fmt(d, i) {
+        return trim(dept_names[i], label_trim_len, orders[order].metric(i));
+      };
+
       // transition nodes (i.e. department arcs)
 
       var node = g.selectAll(".dept").data(node_positions);
@@ -514,9 +539,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         };
       });
 
-      node.select("text").text(function (d, i) {
-        return trim(dept_names[i], label_trim_len);
-      });
+      node.select("text").text(label_fmt);
 
       node.call(relayout_labels);
 
@@ -720,21 +743,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       });
     }));
 
-    var orders = {
-      department: d3.range(n).sort(function (a, b) {
-        return d3.ascending(dept_names[a], dept_names[b]);
-      }),
-      faculty: d3.range(n).sort(function (a, b) {
-        return faculty[b] - faculty[a];
-      }),
-      links: d3.range(n).sort(function (a, b) {
-        return links_sum[b] - links_sum[a];
-      }),
-      emphasis: d3.range(n).sort(function (a, b) {
-        return balance_sum[b] - balance_sum[a];
-      })
-    };
-
     var scale = d3.scale.ordinal();
 
     var colorscale = d3.scale.linear().domain(colors.map(function (d) {
@@ -757,7 +765,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')');
 
-      scale.domain(orders[order]);
+      scale.domain(depts_by_metric[order]);
 
       sizescale.range([3, scale.rangeBand()]);
 
@@ -793,19 +801,25 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       // rules (nodes)
 
-      var xlabs = g.selectAll(".x.labels").data(dept_names).enter().append("g").attr("class", "x labels no_advance").attr("transform", function (d, i) {
+      var label_fmt = function label_fmt(d, i) {
+        return trim(d, label_trim_value, orders[order].metric(i));
+      };
+
+      var xlabs = g.selectAll(".x.labels").data(dept_names);
+
+      var xlabs_e = xlabs.enter().append("g").attr("class", "x labels no_advance").attr("transform", function (d, i) {
         return "translate(" + (scale(i) + 5) + ",-15)rotate(-45)";
       });
 
-      xlabs.append("rect").attr("fill", "transparent").attr("width", axis_width).attr("height", scale.rangeBand());
+      xlabs_e.append("rect").attr("fill", "transparent").attr("width", axis_width).attr("height", scale.rangeBand());
 
-      xlabs.append("text").attr("class", function (d, i) {
+      xlabs_e.append("text").attr("class", function (d, i) {
         return "dept" + i;
-      }).attr("dominant-baseline", "middle").attr("dy", scale.rangeBand() / 2.0).text(function (d) {
-        return trim(d, label_trim_value);
-      }).attr("fill", "black");
+      }).attr("dominant-baseline", "middle").attr("dy", scale.rangeBand() / 2.0).attr("fill", "black");
 
-      xlabs.call(highlight.bind(null, "x_"));
+      xlabs_e.call(highlight.bind(null, "x_"));
+
+      xlabs.select("text").text(label_fmt);
 
       var ylabs = g.selectAll(".y.labels").data(dept_names).enter().append("g").attr("class", "y labels no_advance").attr("transform", function (d, i) {
         return "translate(" + (width - margins.right - margins.left) + "," + scale(i) + ")";
@@ -815,9 +829,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       ylabs.append("text").attr("class", function (d, i) {
         return "dept" + i;
-      }).attr("dominant-baseline", "middle").attr("dy", scale.rangeBand() / 2.0).text(function (d) {
-        return trim(d, label_trim_value);
-      }).attr("fill", "black");
+      }).attr("dominant-baseline", "middle").attr("dy", scale.rangeBand() / 2.0).text(label_fmt).attr("fill", "black");
 
       ylabs.call(highlight.bind(null, "y_"));
 
@@ -916,7 +928,12 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 // Utility functions
 
 function trim(s, n) {
-  return s.length > n ? s.slice(0, n - 3) + "..." : s;
+  var m = arguments.length <= 2 || arguments[2] === undefined ? null : arguments[2];
+
+  m = m === s ? null : m;
+  m = m ? " [" + m + "]" : "";
+  s = s.length + m.length > n ? s.slice(0, n - m.length - 3) + "..." : s;
+  return s + m;
 }
 
 function to_class(s) {
