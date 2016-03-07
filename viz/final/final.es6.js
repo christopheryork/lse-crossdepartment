@@ -11,6 +11,22 @@
 // This file must be pre-processed for Safari, as it uses arrow functions.
 
 // TODO
+
+//   - speed tweak: add/remove visualizations instead of using visible
+//   - never advance while focused, never focus while advancing
+//   - labels for dual chord should not repeat                            DONE
+//   - improve formatting of balance labels
+//   - moving quickly over focus occasionally overrides labels            DONE?
+
+//   - chords: keep focused through selection of new layout               NOT TO DO
+//   - arcs: on focus, show dept label and metric                         NOT TO DO
+//   - arc click: show labels of affiliated depts                         NOT TO DO
+//   - highlight the root department?                                     DONE
+//   - description of project at bottom
+//   - chord titles shouldn't disappear                                   DONE
+//   - invisible arcs behind for mouse events?                            DONE
+
+//   - hover space that is larger than arc                                DONE
 //   - chord colors during selection should be by *opposite* dept color   DONE
 //   - relayout on resize of window                                       DONE
 //   - each view in a separate group, fade in on select                   DONE
@@ -113,7 +129,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   // timer cycling through orders
 
-  // convention: the timer will not advance while the mouse is hovering over any ele
+  // convention: the timer will not advance while the mouse is hovering over any element
   //             with the class "no_advance"
 
   let timeout
@@ -142,6 +158,56 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     render_all()
   }
+
+
+  // order selector
+
+  const format_number = (n) => !isNaN(n) ? d3.format("d")(n) : null
+  const orders =  {
+    department: { label: 'department',
+                  sorted: d3.range(0,n).sort( (a,b) => d3.ascending(dept_names[a], dept_names[b]) ),
+                  ticks: d3.range(0,n).map( (i) => dept_names[i].charAt(0) ) },
+    faculty:    { label: 'faculty size',
+                  sorted: d3.range(0,n).sort( (a,b) => d3.descending(faculty[a], faculty[b]) ),
+                  ticks: d3.range(0,n).map( (i) => format_number(faculty[i]) ) },
+    links:      { label: 'count of links',
+                  sorted: d3.range(0,n).sort( (a,b) => d3.descending(links_sum[a], links_sum[b]) ),
+                  ticks: d3.range(0,n).map( (i) => format_number(links_sum[i]) ) },
+    emphasis:   { label: 'link balance',
+                  sorted: d3.range(0,n).sort( (a,b) => d3.descending(balance_sum[a], balance_sum[b]) ),
+                  ticks: d3.range(0,n).map( (i) => {
+                    let r = sum(research_matrix[i])
+                    let t = sum(teaching_matrix[i])
+                    return "R " + r + " T " + t
+                  } ) }
+  }
+
+  function render_order(order) {
+    let order_div = d3.select("#order dd")
+        .selectAll("div")
+        .data(d3.keys(orders))
+
+    let order_div_e = order_div.enter().append("div")
+    order_div_e.append("input")
+        .attr("id", (d) => d )
+        .attr("type", "radio")
+        .attr("name", "order")
+        .attr("value", (d) => d)
+    order_div_e.append("label")
+        .attr("for", (d) => d )
+        .text( (d) => orders[d].label )
+
+    order_div.select("input")
+        .property("checked", (d) => d === order )
+  }
+
+  d3.select("#order").on("change", () => {
+    let new_order = d3.select("#order input:checked").node().value
+    clearTimeout(timeout)
+    if(new_order !== cur_order) {
+      show(cur_viz, new_order)
+    }
+  })
 
 
   // render complete tree of visualizations
@@ -187,7 +253,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   }
 
   window.onresize = function() {
-    relayout(window.innerWidth)
+    relayout(browser_width())
     render_all()
   }
 
@@ -208,54 +274,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   }
 
 
-  // order selector
-
-  const orders =  {
-    department: { label: 'department', metric: (i) => dept_names[i], sort: d3.ascending },
-    links: { label: 'count of links', metric: (i) => links_sum[i], sort: d3.descending },
-    emphasis: { label: 'link balance', metric: (i) => { let n = balance_sum[i]; return n<0 ? n+" T" : n>0 ? n+" R" : "0" }, sort: d3.ascending },
-    faculty: { label: 'faculty size', metric: (i) => faculty[i], sort: d3.descending }
-  }
-
-  let depts_by_metric = {}
-  d3.keys(orders).forEach( (key) => {
-    let config = orders[key]
-    depts_by_metric[key] = d3.range(n).sort( (a,b) => config.sort( config.metric(a), config.metric(b) ))
-  })
-
-  function render_order(order) {
-    let order_div = d3.select("#order dd")
-        .selectAll("div")
-        .data(d3.keys(orders))
-
-    let order_div_e = order_div.enter().append("div")
-    order_div_e.append("input")
-        .attr("id", (d) => d )
-        .attr("type", "radio")
-        .attr("name", "order")
-        .attr("value", (d) => d)
-    order_div_e.append("label")
-        .attr("for", (d) => d )
-        .text( (d) => orders[d].label )
-
-    order_div.select("input")
-        .property("checked", (d) => d === order )
-  }
-
-  d3.select("#order").on("change", () => {
-    let new_order = d3.select("#order input:checked").node().value
-    clearTimeout(timeout)
-    if(new_order !== cur_order) {
-      show(cur_viz, new_order)
-    }
-  })
-
-
   // dual-chord viz
 
   function render_dual() {
 
-    let innerRadius, outerRadius, chordRadius, labelRadius
+    let hoverRadius, innerRadius, outerRadius, chordRadius, labelRadius
 
     const margins = { top: 80, left: 0, right: 0, bottom: 0 }
 
@@ -271,13 +294,14 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     const title_margin = 20
     const marker_circle_radius = 1.5
 
+    const axis_label_cutoff = 0.1
+
     const label_trim_len = 27
 
     const defocus_opacity = 0.0625
     const resting_opacity = 0.8
     const label_delay = 1500
-    const label_dur = 500
-
+    const label_dur = 750
 
     let height
 
@@ -285,15 +309,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       .domain(d3.range(0, n))
 
     let arc = d3.svg.arc()
-      .innerRadius(innerRadius)
-      .outerRadius(outerRadius)
-
     let label_arc = d3.svg.arc()
-      .innerRadius(labelRadius)
-      .outerRadius(outerRadius)
-
+    let hover_arc = d3.svg.arc()
     let chord = d3.svg.chord()
-      .radius(chordRadius)
 
     const linked_to = (d, i) => d.source_index === i || d.target_index === i
 
@@ -392,7 +410,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       // unconventional use of D3: because bounding box isn't available until text node added to DOM,
       // we do final updates of the layout inside D3 join
-      let labels = nodes.select('text')
+      let labels = nodes.select('.label_info text')
       labels.each( function(d) {
         let bbox = this.getBBox()
         d.labelPosition = label_arc.centroid(d)
@@ -489,9 +507,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       // update chords layout
       let node_positions = layouts[order]
 
-      // label formatter
-      let label_fmt = (d,i) => trim(dept_names[i], label_trim_len, orders[order].metric(i))
-
       // transition nodes (i.e. department arcs)
 
       let node = g.selectAll(".dept")
@@ -503,7 +518,13 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
           .attr("class", (d) => "dept")
 
       node_g.append("path")
+        .attr("id", (d,i) => "arc-" + i)
         .attr("fill", (d,i) => fill(i) )
+      node_g.append("text")
+        .attr("class", "axis label")
+        .attr("dy", "-0.25em")
+        .append("textPath")
+          .attr("xlink:href", (d,i) => "#arc-" + i)
 
       let label_info = node_g.append("g")
         .attr("class", "label_info")
@@ -516,14 +537,22 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         .duration(mode_dur)
 
       trans.select("path")
-          .attrTween("d", function(d) { // "this" below requires function...
-            let interp = d3.interpolate(this._current || d, d)
-            this._current = d
-            return (t) => arc(interp(t))
-          })
+           .attrTween("d", function(d) { // "this" below requires function...
+             let interp = d3.interpolate(this._current || d, d)
+             this._current = d
+             return (t) => arc(interp(t))
+           })
 
-      node.select("text")
-        .text(label_fmt)
+      node.select(".axis.label textPath")
+        .attr("visibility", (d,i) => d.endAngle - d.startAngle > axis_label_cutoff ? "visible" : "hidden")
+        .text( (d,i) => {
+          let tick = orders[order].ticks[i]
+          let prev_tick = i > 0 ? orders[order].ticks[i-1] : null
+          return tick === prev_tick ? "" : tick
+        })
+
+      node.select(".label_info text")
+        .text( (d,i) => trim(dept_names[i], label_trim_len))
 
       node.call(relayout_labels)
 
@@ -580,9 +609,19 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
             this._current = d
             return (t) => chord(interp(t))
           })
+
+
+      // hover spaces for nodes
+
+      let hover = g.selectAll(".hover")
+        .data(node_positions)
+      hover.exit().remove()
+      hover.enter().append("path")
+        .attr("class", "hover")
+      hover.attr("d", hover_arc)
     }
 
-    function focus(g, d0, i0) {
+    function focus(g, i0) {
 
       // collect list of linked departments
       let affiliated = d3.set()
@@ -590,48 +629,49 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         .filter( (d) => linked_to(d, i0) )
         .each( (d) => { affiliated.add(d.source_index); affiliated.add(d.target_index) })
 
-      // silently move labels to focused dept
+      // pop the focused node & link out
 
-      g.selectAll(".dept .label_info")
+      let focus_delta = (outerRadius - innerRadius) / 2
+
+      let focus_arc = d3.svg.arc()
+        .innerRadius(innerRadius + focus_delta)
+        .outerRadius(outerRadius + focus_delta)
+
+      let focus_chord = d3.svg.chord()
+        .source( (d) => Object.assign(d.source, { radius: d.source_index===i0 ? chordRadius + focus_delta : chordRadius } ))
+        .target( (d) => Object.assign(d.target, { radius: d.target_index===i0 ? chordRadius + focus_delta : chordRadius } ))
+
+      let trans = g.transition("labels")
+
+      trans.selectAll(".dept .label_info")
         .attr("opacity", 0)
 
-      g.selectAll(".dept")
-        .filter( (d,i) => affiliated.has(i) || i === i0 )
-        .call(relayout_labels)
+      // first step: chords and arc
 
-      // transition the chords, then fade in labels
+      trans = trans.transition("focus")
+        .duration(500)
 
-      g.transition()
-        .selectAll(".link")
-          .attr("opacity", (d,i) => linked_to(d, i0) ? 1 : defocus_opacity)
-// TODO.  use gradients instead
-//          .attr("fill", (d) => linked_to(d, i0) ? fill(i0) : fill(dominant_arc(d, i0)) )
+      trans.selectAll(".dept path")
+        .attr("d", (d,i) => i===i0 ? focus_arc(d,i) : arc(d,i))
 
-      let trans = g.transition().delay(label_delay).duration(label_dur)
+      trans.selectAll(".link")
+          .attr("opacity", (d,i) => linked_to(d, i0) ? 1 : (i0 ? defocus_opacity : resting_opacity))
+        .attr("d", (d,i) => linked_to(d, i0) ? focus_chord(d,i) : chord(d,i))
+
+      // second step: labels, silently
+
+      trans = trans.transition("labels")
+        .duration(0)
+
+      trans.selectAll(".dept")
+          .filter( (d,i) => affiliated.has(i) || i === i0 )
+          .call(relayout_labels)
+
+      trans = trans.transition("labels")
+        .duration(500)
 
       trans.selectAll(".dept .label_info")
            .attr("opacity", (d,i) => affiliated.has(i) || i === i0 ? 1 : 0)
-      trans.select(".title")
-           .attr("opacity", 0)
-
-    }
-
-    function defocus(g) {
-
-      g.classed('focused', false)
-
-      g.transition().selectAll(".dept .label_info")
-        .attr("opacity", 0)
-
-      let trans = g.transition().delay(label_dur)
-
-      trans.selectAll(".link")
-// TODO.  use gradients instead
-//        .attr("fill", (d) => fill(dominant_arc(d)))
-          .attr("opacity", resting_opacity)
-
-      trans.select(".title")
-           .attr("opacity", 1)
     }
 
     let chart = function(g, order) {
@@ -655,10 +695,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         .append("text")
           .attr("class", "title")
           .attr("text-anchor", "middle")
+          .attr("dy", "0.5em")
           .text( (d,i) => matrix_titles[i] )
 
       chord.select(".title")
-        .attr("transform", "translate(0," + -(labelRadius + title_margin) + ")")
+          .attr("transform", "translate(" + -labelRadius + ",0)rotate(270)")
 
       chord.attr("transform", (d,i) => "translate(" + (labelRadius * 2 * i + labelRadius) + "," + labelRadius + ")")
            .call(update, order)
@@ -667,9 +708,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       // [ focus each chord diagram separately since labels must be repositioned ]
 
-      chord.selectAll(".dept path")
-             .on("mouseenter", (d,i) => chord.each( function() { focus(d3.select(this), d, i) }))
-             .on("mouseout", (d,i) => chord.each( function() { defocus(d3.select(this), d, i) }))
+      chord.selectAll(".hover")
+             .on("mouseenter", (d,i) => chord.each( function() { focus(d3.select(this), i) }))
+             .on("mouseout", (d,i) => chord.each( function() { focus(d3.select(this), null) }))
     }
 
     chart.relayout = function() {
@@ -678,13 +719,18 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       innerRadius = Math.min((width - 100) / 2.0, height) * .41
       outerRadius = innerRadius * 1.05
       chordRadius = innerRadius * 0.99
-      labelRadius = innerRadius * 1.15
+      labelRadius = innerRadius * 1.175
+
+      hoverRadius = innerRadius * 0.7
 
       arc.innerRadius(innerRadius)
          .outerRadius(outerRadius)
 
-      label_arc.innerRadius(labelRadius)
-               .outerRadius(outerRadius)
+      label_arc.innerRadius(outerRadius)
+               .outerRadius(labelRadius)
+
+      hover_arc.innerRadius(hoverRadius)
+               .outerRadius(labelRadius)
 
       chord.radius(chordRadius)
     }
@@ -746,7 +792,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')')
 
-      scale.domain(depts_by_metric[order])
+      scale.domain(orders[order].sorted)
 
       sizescale.range([3, scale.rangeBand()])
 
@@ -792,7 +838,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       // rules (nodes)
 
-      let label_fmt = (d,i) => trim(d, label_trim_value, orders[order].metric(i))
+      let label_fmt = (d,i) => trim(d, label_trim_value, order!=='department' ? orders[order].ticks[i] : null)
 
       let xlabs = g.selectAll(".x.labels")
         .data(dept_names)
@@ -927,7 +973,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   // initial layout and first render
 
-  relayout(window.innerWidth)
+  relayout(browser_width())
   show('chord', 'department')
   timeout = setTimeout(advance, first_slide_pause)
 
@@ -935,6 +981,10 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
 
 // Utility functions
+
+function browser_width() {
+  return window.innerWidth - 20                 // account for cross-browser scrollbar on the right
+}
 
 function trim(s, n, m=null) {
   m = m===s ? null : m

@@ -11,6 +11,22 @@
 // This file must be pre-processed for Safari, as it uses arrow functions.
 
 // TODO
+
+//   - speed tweak: add/remove visualizations instead of using visible
+//   - never advance while focused, never focus while advancing
+//   - labels for dual chord should not repeat                            DONE
+//   - improve formatting of balance labels
+//   - moving quickly over focus occasionally overrides labels            DONE?
+
+//   - chords: keep focused through selection of new layout               NOT TO DO
+//   - arcs: on focus, show dept label and metric                         NOT TO DO
+//   - arc click: show labels of affiliated depts                         NOT TO DO
+//   - highlight the root department?                                     DONE
+//   - description of project at bottom
+//   - chord titles shouldn't disappear                                   DONE
+//   - invisible arcs behind for mouse events?                            DONE
+
+//   - hover space that is larger than arc                                DONE
 //   - chord colors during selection should be by *opposite* dept color   DONE
 //   - relayout on resize of window                                       DONE
 //   - each view in a separate group, fade in on select                   DONE
@@ -133,7 +149,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   // timer cycling through orders
 
-  // convention: the timer will not advance while the mouse is hovering over any ele
+  // convention: the timer will not advance while the mouse is hovering over any element
   //             with the class "no_advance"
 
   var timeout = undefined;
@@ -163,6 +179,72 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
     render_all();
   }
+
+  // order selector
+
+  var format_number = function format_number(n) {
+    return !isNaN(n) ? d3.format("d")(n) : null;
+  };
+  var orders = {
+    department: { label: 'department',
+      sorted: d3.range(0, n).sort(function (a, b) {
+        return d3.ascending(dept_names[a], dept_names[b]);
+      }),
+      ticks: d3.range(0, n).map(function (i) {
+        return dept_names[i].charAt(0);
+      }) },
+    faculty: { label: 'faculty size',
+      sorted: d3.range(0, n).sort(function (a, b) {
+        return d3.descending(faculty[a], faculty[b]);
+      }),
+      ticks: d3.range(0, n).map(function (i) {
+        return format_number(faculty[i]);
+      }) },
+    links: { label: 'count of links',
+      sorted: d3.range(0, n).sort(function (a, b) {
+        return d3.descending(links_sum[a], links_sum[b]);
+      }),
+      ticks: d3.range(0, n).map(function (i) {
+        return format_number(links_sum[i]);
+      }) },
+    emphasis: { label: 'link balance',
+      sorted: d3.range(0, n).sort(function (a, b) {
+        return d3.descending(balance_sum[a], balance_sum[b]);
+      }),
+      ticks: d3.range(0, n).map(function (i) {
+        var r = sum(research_matrix[i]);
+        var t = sum(teaching_matrix[i]);
+        return "R " + r + " T " + t;
+      }) }
+  };
+
+  function render_order(order) {
+    var order_div = d3.select("#order dd").selectAll("div").data(d3.keys(orders));
+
+    var order_div_e = order_div.enter().append("div");
+    order_div_e.append("input").attr("id", function (d) {
+      return d;
+    }).attr("type", "radio").attr("name", "order").attr("value", function (d) {
+      return d;
+    });
+    order_div_e.append("label").attr("for", function (d) {
+      return d;
+    }).text(function (d) {
+      return orders[d].label;
+    });
+
+    order_div.select("input").property("checked", function (d) {
+      return d === order;
+    });
+  }
+
+  d3.select("#order").on("change", function () {
+    var new_order = d3.select("#order input:checked").node().value;
+    clearTimeout(timeout);
+    if (new_order !== cur_order) {
+      show(cur_viz, new_order);
+    }
+  });
 
   // render complete tree of visualizations
 
@@ -206,7 +288,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
   }
 
   window.onresize = function () {
-    relayout(window.innerWidth);
+    relayout(browser_width());
     render_all();
   };
 
@@ -228,64 +310,12 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     });
   }
 
-  // order selector
-
-  var orders = {
-    department: { label: 'department', metric: function metric(i) {
-        return dept_names[i];
-      }, sort: d3.ascending },
-    links: { label: 'count of links', metric: function metric(i) {
-        return links_sum[i];
-      }, sort: d3.descending },
-    emphasis: { label: 'link balance', metric: function metric(i) {
-        var n = balance_sum[i];return n < 0 ? n + " T" : n > 0 ? n + " R" : "0";
-      }, sort: d3.ascending },
-    faculty: { label: 'faculty size', metric: function metric(i) {
-        return faculty[i];
-      }, sort: d3.descending }
-  };
-
-  var depts_by_metric = {};
-  d3.keys(orders).forEach(function (key) {
-    var config = orders[key];
-    depts_by_metric[key] = d3.range(n).sort(function (a, b) {
-      return config.sort(config.metric(a), config.metric(b));
-    });
-  });
-
-  function render_order(order) {
-    var order_div = d3.select("#order dd").selectAll("div").data(d3.keys(orders));
-
-    var order_div_e = order_div.enter().append("div");
-    order_div_e.append("input").attr("id", function (d) {
-      return d;
-    }).attr("type", "radio").attr("name", "order").attr("value", function (d) {
-      return d;
-    });
-    order_div_e.append("label").attr("for", function (d) {
-      return d;
-    }).text(function (d) {
-      return orders[d].label;
-    });
-
-    order_div.select("input").property("checked", function (d) {
-      return d === order;
-    });
-  }
-
-  d3.select("#order").on("change", function () {
-    var new_order = d3.select("#order input:checked").node().value;
-    clearTimeout(timeout);
-    if (new_order !== cur_order) {
-      show(cur_viz, new_order);
-    }
-  });
-
   // dual-chord viz
 
   function render_dual() {
 
-    var innerRadius = undefined,
+    var hoverRadius = undefined,
+        innerRadius = undefined,
         outerRadius = undefined,
         chordRadius = undefined,
         labelRadius = undefined;
@@ -304,22 +334,23 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     var title_margin = 20;
     var marker_circle_radius = 1.5;
 
+    var axis_label_cutoff = 0.1;
+
     var label_trim_len = 27;
 
     var defocus_opacity = 0.0625;
     var resting_opacity = 0.8;
     var label_delay = 1500;
-    var label_dur = 500;
+    var label_dur = 750;
 
     var height = undefined;
 
     var fill = d3.scale.category20c().domain(d3.range(0, n));
 
-    var arc = d3.svg.arc().innerRadius(innerRadius).outerRadius(outerRadius);
-
-    var label_arc = d3.svg.arc().innerRadius(labelRadius).outerRadius(outerRadius);
-
-    var chord = d3.svg.chord().radius(chordRadius);
+    var arc = d3.svg.arc();
+    var label_arc = d3.svg.arc();
+    var hover_arc = d3.svg.arc();
+    var chord = d3.svg.chord();
 
     var linked_to = function linked_to(d, i) {
       return d.source_index === i || d.target_index === i;
@@ -419,7 +450,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       // unconventional use of D3: because bounding box isn't available until text node added to DOM,
       // we do final updates of the layout inside D3 join
-      var labels = nodes.select('text');
+      var labels = nodes.select('.label_info text');
       labels.each(function (d) {
         var bbox = this.getBBox();
         d.labelPosition = label_arc.centroid(d);
@@ -505,11 +536,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       // update chords layout
       var node_positions = layouts[order];
 
-      // label formatter
-      var label_fmt = function label_fmt(d, i) {
-        return trim(dept_names[i], label_trim_len, orders[order].metric(i));
-      };
-
       // transition nodes (i.e. department arcs)
 
       var node = g.selectAll(".dept").data(node_positions);
@@ -520,8 +546,13 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return "dept";
       });
 
-      node_g.append("path").attr("fill", function (d, i) {
+      node_g.append("path").attr("id", function (d, i) {
+        return "arc-" + i;
+      }).attr("fill", function (d, i) {
         return fill(i);
+      });
+      node_g.append("text").attr("class", "axis label").attr("dy", "-0.25em").append("textPath").attr("xlink:href", function (d, i) {
+        return "#arc-" + i;
       });
 
       var label_info = node_g.append("g").attr("class", "label_info").attr("opacity", 0);
@@ -539,7 +570,17 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         };
       });
 
-      node.select("text").text(label_fmt);
+      node.select(".axis.label textPath").attr("visibility", function (d, i) {
+        return d.endAngle - d.startAngle > axis_label_cutoff ? "visible" : "hidden";
+      }).text(function (d, i) {
+        var tick = orders[order].ticks[i];
+        var prev_tick = i > 0 ? orders[order].ticks[i - 1] : null;
+        return tick === prev_tick ? "" : tick;
+      });
+
+      node.select(".label_info text").text(function (d, i) {
+        return trim(dept_names[i], label_trim_len);
+      });
 
       node.call(relayout_labels);
 
@@ -605,9 +646,16 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
           return chord(interp(t));
         };
       });
+
+      // hover spaces for nodes
+
+      var hover = g.selectAll(".hover").data(node_positions);
+      hover.exit().remove();
+      hover.enter().append("path").attr("class", "hover");
+      hover.attr("d", hover_arc);
     }
 
-    function focus(g, d0, i0) {
+    function focus(g, i0) {
 
       // collect list of linked departments
       var affiliated = d3.set();
@@ -617,44 +665,49 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         affiliated.add(d.source_index);affiliated.add(d.target_index);
       });
 
-      // silently move labels to focused dept
+      // pop the focused node & link out
 
-      g.selectAll(".dept .label_info").attr("opacity", 0);
+      var focus_delta = (outerRadius - innerRadius) / 2;
 
-      g.selectAll(".dept").filter(function (d, i) {
+      var focus_arc = d3.svg.arc().innerRadius(innerRadius + focus_delta).outerRadius(outerRadius + focus_delta);
+
+      var focus_chord = d3.svg.chord().source(function (d) {
+        return Object.assign(d.source, { radius: d.source_index === i0 ? chordRadius + focus_delta : chordRadius });
+      }).target(function (d) {
+        return Object.assign(d.target, { radius: d.target_index === i0 ? chordRadius + focus_delta : chordRadius });
+      });
+
+      var trans = g.transition("labels");
+
+      trans.selectAll(".dept .label_info").attr("opacity", 0);
+
+      // first step: chords and arc
+
+      trans = trans.transition("focus").duration(500);
+
+      trans.selectAll(".dept path").attr("d", function (d, i) {
+        return i === i0 ? focus_arc(d, i) : arc(d, i);
+      });
+
+      trans.selectAll(".link").attr("opacity", function (d, i) {
+        return linked_to(d, i0) ? 1 : i0 ? defocus_opacity : resting_opacity;
+      }).attr("d", function (d, i) {
+        return linked_to(d, i0) ? focus_chord(d, i) : chord(d, i);
+      });
+
+      // second step: labels, silently
+
+      trans = trans.transition("labels").duration(0);
+
+      trans.selectAll(".dept").filter(function (d, i) {
         return affiliated.has(i) || i === i0;
       }).call(relayout_labels);
 
-      // transition the chords, then fade in labels
-
-      g.transition().selectAll(".link").attr("opacity", function (d, i) {
-        return linked_to(d, i0) ? 1 : defocus_opacity;
-      });
-      // TODO.  use gradients instead
-      //          .attr("fill", (d) => linked_to(d, i0) ? fill(i0) : fill(dominant_arc(d, i0)) )
-
-      var trans = g.transition().delay(label_delay).duration(label_dur);
+      trans = trans.transition("labels").duration(500);
 
       trans.selectAll(".dept .label_info").attr("opacity", function (d, i) {
         return affiliated.has(i) || i === i0 ? 1 : 0;
       });
-      trans.select(".title").attr("opacity", 0);
-    }
-
-    function defocus(g) {
-
-      g.classed('focused', false);
-
-      g.transition().selectAll(".dept .label_info").attr("opacity", 0);
-
-      var trans = g.transition().delay(label_dur);
-
-      trans.selectAll(".link")
-      // TODO.  use gradients instead
-      //        .attr("fill", (d) => fill(dominant_arc(d)))
-      .attr("opacity", resting_opacity);
-
-      trans.select(".title").attr("opacity", 1);
     }
 
     var chart = function chart(g, order) {
@@ -672,11 +725,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       var chord = g.selectAll(".chord").data([research_matrix, teaching_matrix]);
 
-      chord.enter().append("g").attr("class", "chord no_advance").append("text").attr("class", "title").attr("text-anchor", "middle").text(function (d, i) {
+      chord.enter().append("g").attr("class", "chord no_advance").append("text").attr("class", "title").attr("text-anchor", "middle").attr("dy", "0.5em").text(function (d, i) {
         return matrix_titles[i];
       });
 
-      chord.select(".title").attr("transform", "translate(0," + -(labelRadius + title_margin) + ")");
+      chord.select(".title").attr("transform", "translate(" + -labelRadius + ",0)rotate(270)");
 
       chord.attr("transform", function (d, i) {
         return "translate(" + (labelRadius * 2 * i + labelRadius) + "," + labelRadius + ")";
@@ -686,13 +739,13 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       // [ focus each chord diagram separately since labels must be repositioned ]
 
-      chord.selectAll(".dept path").on("mouseenter", function (d, i) {
+      chord.selectAll(".hover").on("mouseenter", function (d, i) {
         return chord.each(function () {
-          focus(d3.select(this), d, i);
+          focus(d3.select(this), i);
         });
       }).on("mouseout", function (d, i) {
         return chord.each(function () {
-          defocus(d3.select(this), d, i);
+          focus(d3.select(this), null);
         });
       });
     };
@@ -703,11 +756,15 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       innerRadius = Math.min((width - 100) / 2.0, height) * .41;
       outerRadius = innerRadius * 1.05;
       chordRadius = innerRadius * 0.99;
-      labelRadius = innerRadius * 1.15;
+      labelRadius = innerRadius * 1.175;
+
+      hoverRadius = innerRadius * 0.7;
 
       arc.innerRadius(innerRadius).outerRadius(outerRadius);
 
-      label_arc.innerRadius(labelRadius).outerRadius(outerRadius);
+      label_arc.innerRadius(outerRadius).outerRadius(labelRadius);
+
+      hover_arc.innerRadius(hoverRadius).outerRadius(labelRadius);
 
       chord.radius(chordRadius);
     };
@@ -765,7 +822,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')');
 
-      scale.domain(depts_by_metric[order]);
+      scale.domain(orders[order].sorted);
 
       sizescale.range([3, scale.rangeBand()]);
 
@@ -802,7 +859,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       // rules (nodes)
 
       var label_fmt = function label_fmt(d, i) {
-        return trim(d, label_trim_value, orders[order].metric(i));
+        return trim(d, label_trim_value, order !== 'department' ? orders[order].ticks[i] : null);
       };
 
       var xlabs = g.selectAll(".x.labels").data(dept_names);
@@ -920,12 +977,16 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   // initial layout and first render
 
-  relayout(window.innerWidth);
+  relayout(browser_width());
   show('chord', 'department');
   timeout = setTimeout(advance, first_slide_pause);
 });
 
 // Utility functions
+
+function browser_width() {
+  return window.innerWidth - 20; // account for cross-browser scrollbar on the right
+}
 
 function trim(s, n) {
   var m = arguments.length <= 2 || arguments[2] === undefined ? null : arguments[2];
