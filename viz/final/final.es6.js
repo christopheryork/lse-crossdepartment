@@ -12,7 +12,9 @@
 
 // TODO
 
-//   - speed tweak: add/remove visualizations instead of using visible
+//   - correct data: some faculty counts are 0
+
+//   - speed tweak: add/remove visualizations instead of using visible    DONE
 //   - never advance while focused, never focus while advancing
 //   - labels for dual chord should not repeat                            DONE
 //   - improve formatting of balance labels
@@ -223,18 +225,23 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     render_order(cur_order)
 
     let viz = svg_g.selectAll(".viz")
-      .data(d3.keys(visualizations))
+      .data([cur_viz], (key) => key)
+
+    viz.exit()
+      .transition()
+        .duration(slide_transition_dur)
+        .attr("opacity", 0)
+      .remove()
 
     viz.enter().append("g")
       .attr("class", "viz")
+      .attr("opacity", 0)
 
-    viz.filter( (d) => d === cur_viz)
-       .call( visualizations[cur_viz].component, cur_order )
+    viz.call( (g) => visualizations[g.data()].component(g, cur_order) )
 
-    viz.attr('visibility', (d) => d === cur_viz ? 'visible' : 'hidden')   // req'd for mouse event handling
-       .transition()
-         .duration(slide_transition_dur)
-         .attr("opacity", (d) => d === cur_viz ? 1 : 0)
+    viz.transition()
+        .duration(slide_transition_dur)
+        .attr("opacity", 1)
   }
 
 
@@ -864,23 +871,26 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       let ylabs = g.selectAll(".y.labels")
         .data(dept_names)
-       .enter().append("g")
+
+      let ylabs_e = ylabs.enter().append("g")
         .attr("class", "y labels no_advance")
         .attr("transform", (d,i) => "translate(" + (width - margins.right - margins.left) + "," + scale(i) + ")")
 
-      ylabs.append("rect")
+      ylabs_e.append("rect")
         .attr("fill", "transparent")
         .attr("width", axis_width)
         .attr("height", scale.rangeBand())
 
-      ylabs.append("text")
+      ylabs_e.append("text")
         .attr("class", (d,i) => "dept" + i)
         .attr("dominant-baseline", "middle")
         .attr("dy", scale.rangeBand() / 2.0)
         .text(label_fmt)
         .attr("fill", "black")
 
-      ylabs.call(highlight.bind(null, "y_"))
+      ylabs_e.call(highlight.bind(null, "y_"))
+
+      ylabs.select("text").text(label_fmt)
 
       // legends
 

@@ -12,7 +12,9 @@
 
 // TODO
 
-//   - speed tweak: add/remove visualizations instead of using visible
+//   - correct data: some faculty counts are 0
+
+//   - speed tweak: add/remove visualizations instead of using visible    DONE
 //   - never advance while focused, never focus while advancing
 //   - labels for dual chord should not repeat                            DONE
 //   - improve formatting of balance labels
@@ -257,20 +259,19 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     render_viz_selector(cur_viz);
     render_order(cur_order);
 
-    var viz = svg_g.selectAll(".viz").data(d3.keys(visualizations));
-
-    viz.enter().append("g").attr("class", "viz");
-
-    viz.filter(function (d) {
-      return d === cur_viz;
-    }).call(visualizations[cur_viz].component, cur_order);
-
-    viz.attr('visibility', function (d) {
-      return d === cur_viz ? 'visible' : 'hidden';
-    }) // req'd for mouse event handling
-    .transition().duration(slide_transition_dur).attr("opacity", function (d) {
-      return d === cur_viz ? 1 : 0;
+    var viz = svg_g.selectAll(".viz").data([cur_viz], function (key) {
+      return key;
     });
+
+    viz.exit().transition().duration(slide_transition_dur).attr("opacity", 0).remove();
+
+    viz.enter().append("g").attr("class", "viz").attr("opacity", 0);
+
+    viz.call(function (g) {
+      return visualizations[g.data()].component(g, cur_order);
+    });
+
+    viz.transition().duration(slide_transition_dur).attr("opacity", 1);
   }
 
   // layout entire application when browser window resized
@@ -878,17 +879,21 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       xlabs.select("text").text(label_fmt);
 
-      var ylabs = g.selectAll(".y.labels").data(dept_names).enter().append("g").attr("class", "y labels no_advance").attr("transform", function (d, i) {
+      var ylabs = g.selectAll(".y.labels").data(dept_names);
+
+      var ylabs_e = ylabs.enter().append("g").attr("class", "y labels no_advance").attr("transform", function (d, i) {
         return "translate(" + (width - margins.right - margins.left) + "," + scale(i) + ")";
       });
 
-      ylabs.append("rect").attr("fill", "transparent").attr("width", axis_width).attr("height", scale.rangeBand());
+      ylabs_e.append("rect").attr("fill", "transparent").attr("width", axis_width).attr("height", scale.rangeBand());
 
-      ylabs.append("text").attr("class", function (d, i) {
+      ylabs_e.append("text").attr("class", function (d, i) {
         return "dept" + i;
       }).attr("dominant-baseline", "middle").attr("dy", scale.rangeBand() / 2.0).text(label_fmt).attr("fill", "black");
 
-      ylabs.call(highlight.bind(null, "y_"));
+      ylabs_e.call(highlight.bind(null, "y_"));
+
+      ylabs.select("text").text(label_fmt);
 
       // legends
 
