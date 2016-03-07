@@ -14,10 +14,13 @@
 
 //   - correct data: some faculty counts are 0
 
+//   - pie layout sorting is incorrect: see "EDUCATION UCL"
+//   - only display the novel metrics in the axes
+//   - improve formatting of balance labels
+
 //   - speed tweak: add/remove visualizations instead of using visible    DONE
 //   - never advance while focused, never focus while advancing
 //   - labels for dual chord should not repeat                            DONE
-//   - improve formatting of balance labels
 //   - moving quickly over focus occasionally overrides labels            DONE?
 
 //   - chords: keep focused through selection of new layout               NOT TO DO
@@ -372,7 +375,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       return d3.descending(sum(a), sum(b));
     };
 
-    // TODO.  use depts_by_metric?
+    // TODO.  use orders[order].sorted?
     var layouts = {
       department: pie.sort(null).value(Number)(d3.range(0, n).map(d3.functor(1))),
       faculty: pie.sort(d3.ascending).value(Number)(faculty.map(function (d) {
@@ -574,9 +577,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       node.select(".axis.label textPath").attr("visibility", function (d, i) {
         return d.endAngle - d.startAngle > axis_label_cutoff ? "visible" : "hidden";
       }).text(function (d, i) {
-        var tick = orders[order].ticks[i];
-        var prev_tick = i > 0 ? orders[order].ticks[i - 1] : null;
-        return tick === prev_tick ? "" : tick;
+        return orders[order].ticks[i];
       });
 
       node.select(".label_info text").text(function (d, i) {
@@ -841,9 +842,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return dept_names[d.i] + " & " + dept_names[d.j] + "\nResearch: " + research_matrix[d.i][d.j] + ", Teaching: " + teaching_matrix[d.i][d.j];
       });
 
-      cell_enter.append("rect").attr("class", "background").attr("rx", 1).attr("ry", 1).attr("stroke", "none").attr("opacity", 0.2).attr("fill", "none");
+      cell_enter.append("rect").attr("class", "background");
 
-      cell_enter.append("rect").attr("class", "sum").attr("rx", 1).attr("ry", 1);
+      cell_enter.append("rect").attr("class", "sum");
 
       cell_enter.selectAll(".sum").attr("stroke", "none").attr("x", function (d) {
         return scale.rangeBand() / 2.0 - sizescale(links_matrix[d.i][d.j]) / 2.0;
@@ -857,43 +858,45 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return links_matrix[d.i][d.j] > 0 ? colorscale(balance_matrix[d.i][d.j]) : empty_color;
       }).attr("opacity", 1.0);
 
+      // On DOM creation, render without any transitions
+      cell_enter.each(function () {
+        return immediate = true;
+      });
+
       // rules (nodes)
 
       var label_fmt = function label_fmt(d, i) {
-        return trim(d, label_trim_value, order !== 'department' ? orders[order].ticks[i] : null);
+        return trim(d, label_trim_value);
+      };
+      var metric_fmt = function metric_fmt(d, i) {
+        return order === 'department' ? null : orders[order].ticks[i];
       };
 
-      var xlabs = g.selectAll(".x.labels").data(dept_names);
+      function axis(g, prefix) {
+        var labs = g.selectAll(".labels." + prefix).data(dept_names);
 
-      var xlabs_e = xlabs.enter().append("g").attr("class", "x labels no_advance").attr("transform", function (d, i) {
-        return "translate(" + (scale(i) + 5) + ",-15)rotate(-45)";
-      });
+        var labs_e = labs.enter().append("g").attr("class", function (d, i) {
+          return prefix + " labels no_advance " + (prefix + "_" + to_class(d));
+        });
 
-      xlabs_e.append("rect").attr("fill", "transparent").attr("width", axis_width).attr("height", scale.rangeBand());
+        labs_e.append("rect").attr("class", "background").attr("fill", "transparent").attr("width", axis_width).attr("height", scale.rangeBand());
 
-      xlabs_e.append("text").attr("class", function (d, i) {
-        return "dept" + i;
-      }).attr("dominant-baseline", "middle").attr("dy", scale.rangeBand() / 2.0).attr("fill", "black");
+        var labs_e_g = labs_e.append("g").attr("class", function (d, i) {
+          return "node dept" + i;
+        }).attr("transform", "translate(0," + scale.rangeBand() / 2.0 + ")");
 
-      xlabs_e.call(highlight.bind(null, "x_"));
+        labs_e_g.append("text").attr("class", "label").attr("dx", "2em").attr("dy", "0.35em");
 
-      xlabs.select("text").text(label_fmt);
+        labs_e_g.append("text").attr("class", "metric").attr("dx", "1em").attr("dy", "0.35em");
 
-      var ylabs = g.selectAll(".y.labels").data(dept_names);
+        labs_e.call(highlight.bind(null, prefix + "_"));
 
-      var ylabs_e = ylabs.enter().append("g").attr("class", "y labels no_advance").attr("transform", function (d, i) {
-        return "translate(" + (width - margins.right - margins.left) + "," + scale(i) + ")";
-      });
+        labs.select(".node .label").text(label_fmt);
+        labs.select(".node .metric").text(metric_fmt);
+      }
 
-      ylabs_e.append("rect").attr("fill", "transparent").attr("width", axis_width).attr("height", scale.rangeBand());
-
-      ylabs_e.append("text").attr("class", function (d, i) {
-        return "dept" + i;
-      }).attr("dominant-baseline", "middle").attr("dy", scale.rangeBand() / 2.0).text(label_fmt).attr("fill", "black");
-
-      ylabs_e.call(highlight.bind(null, "y_"));
-
-      ylabs.select("text").text(label_fmt);
+      g.call(axis, "x");
+      g.call(axis, "y");
 
       // legends
 
@@ -905,7 +908,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return colorscale(d);
       });
 
-      tick.append("g").append("text").attr("dominant-baseline", "hanging").attr("dx", legend_cell * 1.5).attr("fill", "black").text(function (d, i) {
+      tick.append("g").append("text").attr("dx", legend_cell * 1.5).attr("dy", "0.65em").attr("fill", "black").text(function (d, i) {
         return i === 0 ? "more teaching links" : d === 0 ? "balanced" : d === d3.max(csd) - 1 ? "more research links" : "";
       });
 
@@ -924,7 +927,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return sizescale(i);
       }).attr("fill", "grey");
 
-      tick2.append("text").attr("dx", scale.rangeBand() * 1.2).attr("dy", scale.rangeBand() / 2.0).attr("dominant-baseline", "middle").text(function (d, i) {
+      tick2.append("text").attr("transform", "translate(" + [scale.rangeBand() * 1.2, scale.rangeBand() / 2.0] + ")").attr("dy", "0.35em").text(function (d, i) {
         return d + (i === 0 ? " total links" : "");
       });
 
@@ -945,7 +948,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       trans.selectAll(".x.labels").delay(function (d, i) {
         return immediate ? 0 : scale(i) * 4;
       }).attr("transform", function (d, i) {
-        return "translate(" + (scale(i) + 5) + ",-15)rotate(-45)";
+        return "translate(" + scale(i) + ",-10)rotate(-45)";
       });
 
       trans.selectAll(".cell").delay(function (d) {
@@ -967,7 +970,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       function highlight(prefix, sel) {
         sel.on("mouseover", function (d) {
           d3.selectAll(".cell.selected").classed("selected", false);
+          d3.selectAll(".labels.selected").classed("selected", false);
           d3.selectAll(".cell." + prefix + to_class(d)).classed("selected", true);
+          d3.selectAll(".labels." + prefix + to_class(d)).classed("selected", true);
         });
       }
     };
@@ -1012,6 +1017,14 @@ function uniq() {
     vals = vals.concat(arguments[i]);
   }
   return d3.set(vals).values();
+}
+
+function novel(xs) {
+  var ys = Array(xs.length);
+  for (var i = 0; i < xs.length; i++) {
+    ys[i] = i === 0 || xs[i] !== xs[i - 1] ? xs[i] : null;
+  }
+  return ys;
 }
 
 // Matrix manipulation

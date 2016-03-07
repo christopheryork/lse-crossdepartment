@@ -75,18 +75,6 @@ h1 {
   cursor: pointer;
 }
 
-.selected .background {
-  fill: gray;
-}
-
-.labels {
-  cursor: pointer;
-}
-
-.legend text {
-  opacity: 0.7;
-}
-
 svg text::selection {
   background: none;
 }
@@ -98,6 +86,8 @@ path {
   stroke-opacity: 0.5;
   stroke: white;
 }
+
+/* chord visualization */
 
 .chord .title {
   fill: grey;
@@ -127,6 +117,40 @@ path {
   fill: black;
   font: 8px sans-serif;
   opacity: 0.4;
+}
+
+/* matrix visualization */
+
+.cell rect {
+  rx: 1;
+  ry: 1;
+  stroke: none;
+}
+
+.cell .sum {
+}
+
+.cell .background {
+  fill: transparent;
+}
+
+.node .metric {
+  fill: black;
+  font: 8px sans-serif;
+  opacity: 0.6;
+}
+
+.selected .background {
+  fill: gray;
+  opacity: 0.15;
+}
+
+.labels {
+  cursor: pointer;
+}
+
+.legend text {
+  opacity: 0.7;
 }
 
 
