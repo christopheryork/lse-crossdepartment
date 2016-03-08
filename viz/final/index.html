@@ -119,6 +119,10 @@ path {
   opacity: 0.4;
 }
 
+.minor {
+  visibility: hidden;
+}
+
 /* matrix visualization */
 
 .cell rect {
@@ -134,10 +138,23 @@ path {
   fill: transparent;
 }
 
-.node .metric {
-  fill: black;
+.node .metric text {
+  fill: white;
   font: 8px sans-serif;
-  opacity: 0.6;
+}
+
+.node .metric rect {
+  fill: black;
+  opacity: 0.2;
+}
+
+.node .metric.emphasis.value-1 rect { /* research */
+  fill: #35b7e5;
+  opacity: 0.4;
+}
+.node .metric.emphasis.value-0 rect { /* teaching */
+  fill: red;
+  opacity: 0.4;
 }
 
 .selected .background {

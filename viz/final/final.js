@@ -219,9 +219,21 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       ticks: d3.range(0, n).map(function (i) {
         var r = sum(research_matrix[i]);
         var t = sum(teaching_matrix[i]);
-        return "R " + r + " T " + t;
+        return [r, t];
       }) }
   };
+
+  // calculate list of only major ticks for each order
+  d3.keys(orders).forEach(function (key) {
+    var config = orders[key];
+    var major = d3.set(config.sorted.slice(0, 1));
+    for (var i = 1; i < n; i++) {
+      var j = config.sorted[i - 1];
+      var k = config.sorted[i];
+      if (config.ticks[j] !== config.ticks[k]) major.add(k);
+    }
+    orders[key].major_ticks = major;
+  });
 
   function render_order(order) {
     var order_div = d3.select("#order dd").selectAll("div").data(d3.keys(orders));
@@ -574,9 +586,12 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         };
       });
 
-      node.select(".axis.label textPath").attr("visibility", function (d, i) {
-        return d.endAngle - d.startAngle > axis_label_cutoff ? "visible" : "hidden";
-      }).text(function (d, i) {
+      node.select(".axis.label textPath").classed({ narrow: function narrow(d, i) {
+          return d.endAngle - d.startAngle < axis_label_cutoff;
+        },
+        minor: function minor(d, i) {
+          return orders[order].major_ticks.has(i);
+        } }).text(function (d, i) {
         return orders[order].ticks[i];
       });
 
@@ -865,15 +880,10 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       // rules (nodes)
 
-      var label_fmt = function label_fmt(d, i) {
-        return trim(d, label_trim_value);
-      };
-      var metric_fmt = function metric_fmt(d, i) {
-        return order === 'department' ? null : orders[order].ticks[i];
-      };
-
       function axis(g, prefix) {
         var labs = g.selectAll(".labels." + prefix).data(dept_names);
+
+        labs.exit().remove();
 
         var labs_e = labs.enter().append("g").attr("class", function (d, i) {
           return prefix + " labels no_advance " + (prefix + "_" + to_class(d));
@@ -881,18 +891,52 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
         labs_e.append("rect").attr("class", "background").attr("fill", "transparent").attr("width", axis_width).attr("height", scale.rangeBand());
 
+        labs_e.call(highlight.bind(null, prefix + "_"));
+
         var labs_e_g = labs_e.append("g").attr("class", function (d, i) {
           return "node dept" + i;
         }).attr("transform", "translate(0," + scale.rangeBand() / 2.0 + ")");
 
-        labs_e_g.append("text").attr("class", "label").attr("dx", "2em").attr("dy", "0.35em");
+        labs_e_g.append("text").attr("class", "label").attr("dx", "2.2em").attr("dy", "0.35em");
 
-        labs_e_g.append("text").attr("class", "metric").attr("dx", "1em").attr("dy", "0.35em");
+        var metrics = labs.select(".node").selectAll(".metric").data(function (d, i) {
+          var vals = orders[order].ticks[i];
+          if (!Array.isArray(vals)) vals = [vals];
+          return vals.map(function (tick) {
+            return { dept: d, index: i, size: vals.length, tick: tick };
+          });
+        });
 
-        labs_e.call(highlight.bind(null, prefix + "_"));
+        metrics.exit().remove();
 
-        labs.select(".node .label").text(label_fmt);
-        labs.select(".node .metric").text(metric_fmt);
+        metrics.enter().append("g");
+
+        metrics.append("rect").attr("rect-for-id", function (d, i) {
+          return "metric_" + prefix + "_" + to_class(d.dept) + i;
+        });
+
+        metrics.append("text").attr("id", function (d, i) {
+          return "metric_" + prefix + "_" + to_class(d.dept) + i;
+        }).attr("dx", "1em").attr("y", function (d, i) {
+          return i * 1.5 + "em";
+        });
+
+        // update cycle
+
+        labs.select(".node .label").text(function (d) {
+          return trim(d, label_trim_value);
+        });
+
+        metrics.attr("class", function (d, i) {
+          return "metric " + order + " value-" + i + (orders[order].major_ticks.has(d.index) ? " major" : " minor");
+        });
+        metrics.select("text").text(function (d) {
+          return d.tick;
+        }).attr("dy", function (d) {
+          return (-d.size + 1) * 0.75 + 0.35 + "em";
+        });
+
+        metrics.select("rect").call(bbox_for_id, { top: 1, right: 3, bottom: 1, left: 3 });
       }
 
       g.call(axis, "x");
@@ -948,7 +992,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       trans.selectAll(".x.labels").delay(function (d, i) {
         return immediate ? 0 : scale(i) * 4;
       }).attr("transform", function (d, i) {
-        return "translate(" + scale(i) + ",-10)rotate(-45)";
+        return "translate(" + scale(i) + ",-15)rotate(-45)";
       });
 
       trans.selectAll(".cell").delay(function (d) {
@@ -1019,12 +1063,26 @@ function uniq() {
   return d3.set(vals).values();
 }
 
-function novel(xs) {
-  var ys = Array(xs.length);
-  for (var i = 0; i < xs.length; i++) {
-    ys[i] = i === 0 || xs[i] !== xs[i - 1] ? xs[i] : null;
-  }
-  return ys;
+// SVG helper functions
+
+var id = (function () {
+  var a = 0;return function () {
+    return a++;
+  };
+})();
+
+function bbox_for_id() {
+  var rects = arguments.length <= 0 || arguments[0] === undefined ? null : arguments[0];
+  var padding = arguments.length <= 1 || arguments[1] === undefined ? { top: 0, right: 0, bottom: 0, left: 0 } : arguments[1];
+
+  rects = rects || d3.selectAll("rect[rect-for-id]");
+  rects.each(function () {
+    var elem = d3.select(this);
+    var text_id = elem.attr("rect-for-id");
+    var text = d3.select("#" + text_id);
+    var bbox = text[0][0].getBBox();
+    elem.attr("x", bbox.x - padding.left).attr("y", bbox.y - padding.top).attr("width", bbox.width + padding.left + padding.right).attr("height", bbox.height + padding.top + padding.bottom);
+  });
 }
 
 // Matrix manipulation

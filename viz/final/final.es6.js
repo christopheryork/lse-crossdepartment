@@ -168,7 +168,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   // order selector
 
   const format_number = (n) => !isNaN(n) ? d3.format("d")(n) : null
-  const orders =  {
+  let orders =  {
     department: { label: 'department',
                   sorted: d3.range(0,n).sort( (a,b) => d3.ascending(dept_names[a], dept_names[b]) ),
                   ticks: d3.range(0,n).map( (i) => dept_names[i].charAt(0) ) },
@@ -183,9 +183,22 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
                   ticks: d3.range(0,n).map( (i) => {
                     let r = sum(research_matrix[i])
                     let t = sum(teaching_matrix[i])
-                    return "R " + r + " T " + t
+                    return [r,t]
                   } ) }
   }
+
+  // calculate list of only major ticks for each order
+  d3.keys(orders).forEach( (key) => {
+    let config = orders[key]
+    let major = d3.set( config.sorted.slice(0,1) )
+    for(let i=1; i<n; i++) {
+      let j = config.sorted[i-1]
+      let k = config.sorted[i]
+      if(config.ticks[j] !== config.ticks[k])
+        major.add(k)
+    }
+    orders[key].major_ticks = major
+  })
 
   function render_order(order) {
     let order_div = d3.select("#order dd")
@@ -554,7 +567,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
            })
 
       node.select(".axis.label textPath")
-        .attr("visibility", (d,i) => d.endAngle - d.startAngle > axis_label_cutoff ? "visible" : "hidden")
+        .classed({ narrow: (d,i) => d.endAngle - d.startAngle < axis_label_cutoff,
+                   minor: (d,i) => orders[order].major_ticks.has(i) })
         .text( (d,i) => orders[order].ticks[i] )
 
       node.select(".label_info text")
@@ -840,12 +854,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       // rules (nodes)
 
-      let label_fmt = (d,i) => trim(d, label_trim_value)
-      let metric_fmt = (d,i) => order==='department' ? null : orders[order].ticks[i]
-
       function axis(g, prefix) {
         let labs = g.selectAll(".labels." + prefix)
           .data(dept_names)
+
+        labs.exit().remove()
 
         let labs_e = labs.enter().append("g")
           .attr("class", (d,i) => prefix + " labels no_advance " + (prefix + "_" + to_class(d)))
@@ -856,24 +869,48 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
           .attr("width", axis_width)
           .attr("height", scale.rangeBand())
 
+        labs_e.call(highlight.bind(null, prefix + "_"))
+
         let labs_e_g = labs_e.append("g")
           .attr("class", (d, i) => "node dept" + i)
           .attr("transform", "translate(0," + scale.rangeBand() / 2.0 + ")")
 
         labs_e_g.append("text")
           .attr("class", "label")
-          .attr("dx", "2em")
+          .attr("dx", "2.2em")
           .attr("dy", "0.35em")
 
-        labs_e_g.append("text")
-          .attr("class", "metric")
+        let metrics = labs.select(".node").selectAll(".metric")
+          .data(function(d,i) {
+            let vals = orders[order].ticks[i]
+            if(!Array.isArray(vals)) vals = [vals]
+            return vals.map( (tick) => {
+              return {dept: d, index: i, size: vals.length, tick: tick}
+            })
+          })
+
+        metrics.exit().remove()
+
+        metrics.enter().append("g")
+
+        metrics.append("rect")
+          .attr("rect-for-id", (d,i) => "metric_" + prefix + "_" + to_class(d.dept) + i)
+
+        metrics.append("text")
+          .attr("id", (d,i) => "metric_" + prefix + "_" + to_class(d.dept) + i)
           .attr("dx", "1em")
-          .attr("dy", "0.35em")
+          .attr("y", (d,i) => (i * 1.5) + "em")
 
-        labs_e.call(highlight.bind(null, prefix + "_"))
+        // update cycle
 
-        labs.select(".node .label").text(label_fmt)
-        labs.select(".node .metric").text(metric_fmt)
+        labs.select(".node .label").text( (d) => trim(d, label_trim_value))
+
+        metrics.attr("class", (d,i) => "metric " + order + " value-" + i + (orders[order].major_ticks.has(d.index) ? " major" : " minor"))
+        metrics.select("text").text( (d) => d.tick )
+               .attr("dy", (d) => ((-d.size+1) * 0.75 + 0.35) + "em")
+
+        metrics.select("rect")
+          .call(bbox_for_id, {top: 1, right: 3, bottom: 1, left: 3})
       }
 
       g.call(axis, "x")
@@ -935,7 +972,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       trans.selectAll(".x.labels")
           .delay( (d, i) => immediate ? 0 : scale(i) * 4 )
-          .attr("transform", (d, i) => "translate(" + scale(i) + ",-10)rotate(-45)")
+          .attr("transform", (d, i) => "translate(" + scale(i) + ",-15)rotate(-45)")
 
       trans.selectAll(".cell")
             .delay( (d) => immediate ? 0 : scale(d.i) * 4 )
@@ -1003,12 +1040,22 @@ function uniq() {
   return d3.set(vals).values()
 }
 
-function novel(xs) {
-  let ys = Array(xs.length)
-  for(let i=0; i<xs.length; i++) {
-    ys[i] = (i===0 || (xs[i] !== xs[i-1])) ? xs[i] : null
-  }
-  return ys
+// SVG helper functions
+
+var id = (function(){var a = 0; return function(){return a++}})();
+
+function bbox_for_id(rects=null, padding={top:0,right:0,bottom:0,left:0}) {
+  rects = rects || d3.selectAll("rect[rect-for-id]")
+  rects.each(function() {
+    let elem = d3.select(this)
+    let text_id = elem.attr("rect-for-id")
+    let text = d3.select("#" + text_id)
+    let bbox = text[0][0].getBBox()
+    elem.attr("x", bbox.x - padding.left)
+        .attr("y", bbox.y - padding.top)
+        .attr("width", bbox.width + padding.left + padding.right)
+        .attr("height", bbox.height + padding.top + padding.bottom)
+  })
 }
 
 // Matrix manipulation
