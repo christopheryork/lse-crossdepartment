@@ -113,13 +113,18 @@ path {
   cursor: pointer;
 }
 
-.dept .axis.label {
+.link {
+  pointer-events: none;
+}
+
+.dept .label {
   fill: black;
   font: 8px sans-serif;
   opacity: 0.4;
 }
 
-.minor {
+.minor,
+.narrow {
   visibility: hidden;
 }
 
@@ -175,7 +180,7 @@ path {
 <body>
 
 <div id="titlebar">
-  <h1>Cross-Departmental Research and Teaching at the LSE</h1>
+  <h1><!-- Cross-Departmental Research and Teaching at the LSE --></h1>
   <div id="viz"><span>Explore</span><ul class="disable-selection"></ul></div>
 </div>
 
