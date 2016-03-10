@@ -12,11 +12,16 @@
 
 // TODO
 
-//   - correct data: some faculty counts are 0
 
-//   - attach chord links to appropriate arcs
-//   - correctly delayed interpolation for chord links
+//   - correct data: some faculty counts are 0
+//   - focus during transition causes craziness
+//   - interpolation error for balance on dual                            DONE
+
+//   - attach chord links to appropriate arcs                             DONE
+//   - correctly delayed interpolation for chord links                    DONE
 //   - format R + T key labels in chord diagram
+
+//   - first chord is not focusing (probably a Javascript if(0) problem)  DONE
 
 //   - pie layout sorting is incorrect: see "EDUCATION UCL"               DONE
 //   - only display the novel metrics in the axes                         DONE
@@ -158,7 +163,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       show(cur_viz, next_order)
     }
 
-//    timeout = setTimeout(advance, n_slide_pause)
+    timeout = setTimeout(advance, n_slide_pause)
   }
 
 
@@ -169,6 +174,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     cur_order = order
 
     render_all()
+
+    // TODO REMOVE
+    console.log("Element count: " + document.getElementsByTagName('*').length)
   }
 
 
@@ -321,7 +329,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     const padAngle = 0.01
     const chordWidth = 0.04
-    const mode_dur = 2500  // 750
 
     const label_margin = 1.5
     const label_padding = 5
@@ -332,9 +339,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     const label_trim_len = 27
 
-    const sorting_opacity = 0.2
+    const sorting_opacity = 0.75
     const defocus_opacity = 0.0625
-    const resting_opacity = 0.8
+    const resting_opacity = 0.7
     const label_delay = 1500
     const label_dur = 750
 
@@ -371,8 +378,16 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
                      (orders[key].sorted)
     }))
 
-    let arc_trans_delay = (d,i) => mode_dur * (1.0-d.endAngle / τ ) // attractive option for arcs sorted by descending value
-
+    const mode_dur = 5000
+    const arc_trans_dur = 0.4
+    const arc_trans_delay = (d) => {
+      let offset = τ + pie_rotate
+      let arc_center = (d.startAngle + d.endAngle) / 2
+      let radians = (offset - arc_center) % τ
+      radians = (radians > 0) ? radians : (τ + radians)
+      return radians / τ * (1.0 - arc_trans_dur)
+    }
+    const arc_ease = d3.ease("cubic-in-out")
 
     // based on position of each node (arc), generate layout for links (chords)
     function calc_links(data, node_positions) {
@@ -558,6 +573,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         .attr("class", "arc")
         .attr("id", (d) => "arc-" + d.data)
         .attr("fill", (d) => fill(d.data) )
+        .attr("d", arc)             // TODO unclear why this is necessary
 
       node_g.append("text")
         .attr("class", "axis label")
@@ -584,14 +600,18 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
           .duration(immediate ? 0 : 250)
           .attr("opacity", sorting_opacity)
         .transition()
-            .delay(immediate ? 0 : arc_trans_delay)
+            .ease("linear")
             .duration(immediate ? 0 : mode_dur)
-          .attr("opacity", 1)
-          .attrTween("d", function(d) { // "this" below requires function...
-            let interp = d3.interpolate(this._current || d, d)
-            this._current = d
-            return (t) => arc(interp(t))
+          .attrTween("d", function(d,i) { // "this" below requires function...
+              let interp = d3.interpolate(this._current || d, d)
+              this._current = d
+              let eased_interp = (t) => interp(arc_ease(t))
+              let embedded_interp = embed_interpolate(eased_interp, arc_trans_delay(d), arc_trans_dur)
+              return (t) => arc(embedded_interp(t))
           })
+        .transition()
+          .duration(immediate ? 0 : 250)
+          .attr("opacity", 1)
 
       node.select(".hover")
           .attr("d", hover_arc)
@@ -656,15 +676,36 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         .attr("class", "link")
         .attr("fill", (d) => "url(#gradient-" + link_id(d) + ")" )
         .attr("opacity", resting_opacity)
+        .attr("d", chord)             // TODO unclear why this is necessary
 
       link.transition()
-        .duration(immediate ? 0 : mode_dur)
-          .attr("opacity", resting_opacity)
+          .duration(immediate ? 0 : 250)
+          .attr("opacity", defocus_opacity)
+        .transition()
+          .duration(immediate ? 0 : mode_dur)
+          .ease("linear")
           .attrTween("d", function(d) { // "this" below requires function...
-            let interp = d3.interpolate(this._current || d, d)
+            let d0 = this._current || d
             this._current = d
+
+            let sourceInterp = (t) => d3.interpolate(d0.source, d.source)(arc_ease(t))
+            let targetInterp = (t) => d3.interpolate(d0.target, d.target)(arc_ease(t))
+
+            sourceInterp = embed_interpolate(sourceInterp, arc_trans_delay(d.source), arc_trans_dur)
+            targetInterp = embed_interpolate(targetInterp, arc_trans_delay(d.target), arc_trans_dur)
+
+            let interp = (t) => {
+              return { source: sourceInterp(t),
+                       target: targetInterp(t),
+                       source_dept: d.source_dept,
+                       target_dept: d.target_dept }
+            }
+
             return (t) => chord(interp(t))
           })
+      .transition()
+        .duration(immediate ? 0 : 250)
+        .attr("opacity", resting_opacity)
     }
 
     function focus(g, dept) {
@@ -698,7 +739,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         .attr("d", (d,i) => d.data===dept ? focus_arc(d,i) : arc(d,i))
 
       trans.selectAll(".link")
-          .attr("opacity", (d) => linked_to(d, dept) ? 1 : (dept ? defocus_opacity : resting_opacity))
+          .attr("opacity", (d) => linked_to(d, dept) ? 1 : (dept===null ?  resting_opacity : defocus_opacity)) // TODO NB must pass 0 through
         .attr("d", (d,i) => linked_to(d, dept) ? focus_chord(d,i) : chord(d,i))
 
       // second step: labels, silently
@@ -750,7 +791,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       // behavior
 
       // [ focus each chord diagram separately since labels must be repositioned ]
-
       chord.selectAll(".hover")
              .on("mouseenter", (d) => chord.each( function() { focus(d3.select(this), d.data) }))
              .on("mouseout", (d) => chord.each( function() { focus(d3.select(this), null) }))
@@ -1037,7 +1077,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   relayout(browser_width())
   show('chord', 'department')
-//  timeout = setTimeout(advance, first_slide_pause)
+  timeout = setTimeout(advance, first_slide_pause)
 
 })
 
@@ -1065,6 +1105,17 @@ function uniq() {
     vals = vals.concat(arguments[i])
   }
   return d3.set(vals).values()
+}
+
+// embed one interpolator into a larger time frame
+//   delay and dur should be between 0 & 1
+function embed_interpolate(f, delay, dur) {
+  if(delay<0||delay>1||dur<0||dur>1) console.log("INTERPOLATION ERROR " + [delay,dur])
+  return function(t) {
+    let tn = (t - delay) / dur
+//    console.log(t + " -> " + tn + " at " + [delay, dur])
+    return (tn<0) ? f(0) : (tn>1) ? f(1) : f(tn)
+  }
 }
 
 // SVG helper functions

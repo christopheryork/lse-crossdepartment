@@ -13,10 +13,14 @@
 // TODO
 
 //   - correct data: some faculty counts are 0
+//   - focus during transition causes craziness
+//   - interpolation error for balance on dual                            DONE
 
-//   - attach chord links to appropriate arcs
-//   - correctly delayed interpolation for chord links
+//   - attach chord links to appropriate arcs                             DONE
+//   - correctly delayed interpolation for chord links                    DONE
 //   - format R + T key labels in chord diagram
+
+//   - first chord is not focusing (probably a Javascript if(0) problem)  DONE
 
 //   - pie layout sorting is incorrect: see "EDUCATION UCL"               DONE
 //   - only display the novel metrics in the axes                         DONE
@@ -180,7 +184,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       show(cur_viz, next_order);
     }
 
-    //    timeout = setTimeout(advance, n_slide_pause)
+    timeout = setTimeout(advance, n_slide_pause);
   }
 
   // transition application state and render everything
@@ -190,6 +194,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     cur_order = order;
 
     render_all();
+
+    // TODO REMOVE
+    console.log("Element count: " + document.getElementsByTagName('*').length);
   }
 
   // order selector
@@ -358,7 +365,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
     var padAngle = 0.01;
     var chordWidth = 0.04;
-    var mode_dur = 2500; // 750
 
     var label_margin = 1.5;
     var label_padding = 5;
@@ -369,9 +375,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
     var label_trim_len = 27;
 
-    var sorting_opacity = 0.2;
+    var sorting_opacity = 0.75;
     var defocus_opacity = 0.0625;
-    var resting_opacity = 0.8;
+    var resting_opacity = 0.7;
     var label_delay = 1500;
     var label_dur = 750;
 
@@ -404,9 +410,16 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       })(orders[key].sorted);
     });
 
-    var arc_trans_delay = function arc_trans_delay(d, i) {
-      return mode_dur * (1.0 - d.endAngle / τ);
-    }; // attractive option for arcs sorted by descending value
+    var mode_dur = 5000;
+    var arc_trans_dur = 0.4;
+    var arc_trans_delay = function arc_trans_delay(d) {
+      var offset = τ + pie_rotate;
+      var arc_center = (d.startAngle + d.endAngle) / 2;
+      var radians = (offset - arc_center) % τ;
+      radians = radians > 0 ? radians : τ + radians;
+      return radians / τ * (1.0 - arc_trans_dur);
+    };
+    var arc_ease = d3.ease("cubic-in-out");
 
     // based on position of each node (arc), generate layout for links (chords)
     function calc_links(data, node_positions) {
@@ -582,7 +595,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return "arc-" + d.data;
       }).attr("fill", function (d) {
         return fill(d.data);
-      });
+      }).attr("d", arc); // TODO unclear why this is necessary
 
       node_g.append("text").attr("class", "axis label").attr("dy", "-0.25em").append("textPath").attr("xlink:href", function (d) {
         return "#arc-" + d.data;
@@ -599,14 +612,18 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       node_g.append("path").attr("class", "hover");
 
-      var trans = node.select(".arc").transition().duration(immediate ? 0 : 250).attr("opacity", sorting_opacity).transition().delay(immediate ? 0 : arc_trans_delay).duration(immediate ? 0 : mode_dur).attr("opacity", 1).attrTween("d", function (d) {
+      var trans = node.select(".arc").transition().duration(immediate ? 0 : 250).attr("opacity", sorting_opacity).transition().ease("linear").duration(immediate ? 0 : mode_dur).attrTween("d", function (d, i) {
         // "this" below requires function...
         var interp = d3.interpolate(this._current || d, d);
         this._current = d;
-        return function (t) {
-          return arc(interp(t));
+        var eased_interp = function eased_interp(t) {
+          return interp(arc_ease(t));
         };
-      });
+        var embedded_interp = embed_interpolate(eased_interp, arc_trans_delay(d), arc_trans_dur);
+        return function (t) {
+          return arc(embedded_interp(t));
+        };
+      }).transition().duration(immediate ? 0 : 250).attr("opacity", 1);
 
       node.select(".hover").attr("d", hover_arc);
 
@@ -679,16 +696,34 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       link.enter().append("path").attr("class", "link").attr("fill", function (d) {
         return "url(#gradient-" + link_id(d) + ")";
-      }).attr("opacity", resting_opacity);
+      }).attr("opacity", resting_opacity).attr("d", chord); // TODO unclear why this is necessary
 
-      link.transition().duration(immediate ? 0 : mode_dur).attr("opacity", resting_opacity).attrTween("d", function (d) {
+      link.transition().duration(immediate ? 0 : 250).attr("opacity", defocus_opacity).transition().duration(immediate ? 0 : mode_dur).ease("linear").attrTween("d", function (d) {
         // "this" below requires function...
-        var interp = d3.interpolate(this._current || d, d);
+        var d0 = this._current || d;
         this._current = d;
+
+        var sourceInterp = function sourceInterp(t) {
+          return d3.interpolate(d0.source, d.source)(arc_ease(t));
+        };
+        var targetInterp = function targetInterp(t) {
+          return d3.interpolate(d0.target, d.target)(arc_ease(t));
+        };
+
+        sourceInterp = embed_interpolate(sourceInterp, arc_trans_delay(d.source), arc_trans_dur);
+        targetInterp = embed_interpolate(targetInterp, arc_trans_delay(d.target), arc_trans_dur);
+
+        var interp = function interp(t) {
+          return { source: sourceInterp(t),
+            target: targetInterp(t),
+            source_dept: d.source_dept,
+            target_dept: d.target_dept };
+        };
+
         return function (t) {
           return chord(interp(t));
         };
-      });
+      }).transition().duration(immediate ? 0 : 250).attr("opacity", resting_opacity);
     }
 
     function focus(g, dept) {
@@ -723,8 +758,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       });
 
       trans.selectAll(".link").attr("opacity", function (d) {
-        return linked_to(d, dept) ? 1 : dept ? defocus_opacity : resting_opacity;
-      }).attr("d", function (d, i) {
+        return linked_to(d, dept) ? 1 : dept === null ? resting_opacity : defocus_opacity;
+      }) // TODO NB must pass 0 through
+      .attr("d", function (d, i) {
         return linked_to(d, dept) ? focus_chord(d, i) : chord(d, i);
       });
 
@@ -771,7 +807,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       // behavior
 
       // [ focus each chord diagram separately since labels must be repositioned ]
-
       chord.selectAll(".hover").on("mouseenter", function (d) {
         return chord.each(function () {
           focus(d3.select(this), d.data);
@@ -1053,7 +1088,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   relayout(browser_width());
   show('chord', 'department');
-  //  timeout = setTimeout(advance, first_slide_pause)
+  timeout = setTimeout(advance, first_slide_pause);
 });
 
 // Utility functions
@@ -1081,6 +1116,17 @@ function uniq() {
     vals = vals.concat(arguments[i]);
   }
   return d3.set(vals).values();
+}
+
+// embed one interpolator into a larger time frame
+//   delay and dur should be between 0 & 1
+function embed_interpolate(f, delay, dur) {
+  if (delay < 0 || delay > 1 || dur < 0 || dur > 1) console.log("INTERPOLATION ERROR " + [delay, dur]);
+  return function (t) {
+    var tn = (t - delay) / dur;
+    //    console.log(t + " -> " + tn + " at " + [delay, dur])
+    return tn < 0 ? f(0) : tn > 1 ? f(1) : f(tn);
+  };
 }
 
 // SVG helper functions
