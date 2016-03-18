@@ -13,6 +13,7 @@
 // TODO
 
 //   - why do new links occasionally appear on focus?
+//     also gradients go off
 
 //   - code cleanup: keep version where paths disappear                   DONE
 //   - move metrics to tspans after labels                                DONE
@@ -141,8 +142,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
   let width
 
-  let svg = d3.select("body")
-    .append("svg")
+  let svg = d3.select("svg")
 
   let svg_g = svg.append("g")
     .attr("transform", "translate(" + margins.left + "," + margins.top + ")")
@@ -178,9 +178,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     cur_order = order
 
     render_all()
-
-    // TODO REMOVE
-    console.log("Element count: " + document.getElementsByTagName('*').length)
   }
 
 
@@ -552,8 +549,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     function append_chords(g, node_positions) {
 
       // set up for chords
-      //
-      // TODO.  preferable not to calculate the link layout twice...
 
       // ensure svg defs declared
       let defs = install_defs(g)
@@ -746,7 +741,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     let chart = function(g, order) {
 
-      // TODO.  not best to use a global here
       svg.attr('height', height)
 
       g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')')
@@ -783,14 +777,15 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
     }
 
     chart.relayout = function() {
-      height = width * 0.7 - margins.bottom
+      innerRadius = (width - 100) * 0.205
 
-      innerRadius = Math.min((width - 100) / 2.0, height) * .41
       outerRadius = innerRadius * 1.05
       chordRadius = innerRadius * 0.99
       labelRadius = innerRadius * 1.175
 
       hoverRadius = innerRadius * 0.7
+
+      height = labelRadius * 2.25 + margins.top + margins.bottom
 
       arc.innerRadius(innerRadius)
          .outerRadius(outerRadius)
@@ -852,8 +847,8 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
     let csd = colorscale.domain()
 
-
     let immediate = true
+
 
     let chart = function(g, order) {
 
@@ -1079,6 +1074,7 @@ function endAll(transition, callback) {
       if (!--n) callback.apply(this, arguments);
     });
 }
+
 
 // Matrix manipulation
 
