@@ -13,7 +13,7 @@
 // TODO
 
 //   - why do new links occasionally appear on focus?
-//     also gradients go off
+//     also gradients go off  e.g. faculty limited to 3
 
 //   - code cleanup: keep version where paths disappear                   DONE
 //   - move metrics to tspans after labels                                DONE
@@ -570,9 +570,13 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       return defs;
     }
 
+    var uid = 0;
+
     function append_chords(g, node_positions) {
 
       // set up for chords
+
+      uid++;
 
       // ensure svg defs declared
       var defs = install_defs(g);
@@ -587,11 +591,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return calc_links(matrix, node_positions);
       }, link_id);
 
-      var gradient_e = gradient.enter().append("linearGradient").attr("id", function (d) {
-        return "gradient-" + link_id(d);
-      }).attr("gradientUnits", "userSpaceOnUse");
+      var gradient_e = gradient.enter().append("linearGradient").attr("gradientUnits", "userSpaceOnUse");
 
-      gradient_e.attr("x1", function (d) {
+      gradient.attr("id", function (d) {
+        return "gradient-" + link_id(d) + "-" + uid;
+      }).attr("x1", function (d) {
         return arc.centroid(d.source)[0];
       }).attr("y1", function (d) {
         return arc.centroid(d.source)[1];
@@ -604,7 +608,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       var stop = gradient.selectAll("stop").data(function (d) {
         return [d.source_dept, d.target_dept];
       });
-      stop.enter().append("stop").attr("offset", function (d, i) {
+      stop.enter().append("stop");
+
+      stop.attr("offset", function (d, i) {
         return percent(i);
       }).attr("stop-color", function (d) {
         return fill(d);
@@ -616,9 +622,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return calc_links(matrix, node_positions);
       }, link_id);
 
-      link.enter().append("path").attr("class", "link").attr("fill", function (d) {
-        return "url(#gradient-" + link_id(d) + ")";
-      }).attr("opacity", 0).attr("d", chord);
+      link.enter().append("path").attr("class", "link");
+
+      link.attr("fill", function (d) {
+        return "url(#gradient-" + link_id(d) + "-" + uid + ")";
+      }).attr("d", chord).attr("opacity", 0);
 
       link.transition().delay(function (d, i) {
         return i * 8;
@@ -630,10 +638,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       // update chords layout
       var node_positions = layouts[order];
 
-      // remove all links before animation
+      // disallow focus during transition
       g.classed("transitioning", true);
-      g.selectAll("def linearGradient").remove();
-      g.selectAll(".link").remove();
+      g.selectAll(".link").attr("opacity", 0);
 
       // transition nodes (i.e. department arcs)
 
@@ -643,7 +650,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       node.exit().remove(); // never actually used
 
-      var node_e = node.enter().append("g").attr("class", "dept");
+      var node_e = node.enter().append("g").attr("class", function (d) {
+        return "dept dept-" + d.data;
+      });
 
       node_e.append("path").attr("class", "arc").attr("id", function (d) {
         return "arc-" + d.data;
@@ -684,6 +693,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       trans = trans.transition().duration(250).attr("opacity", 1).call(endAll, function () {
         append_chords(g, node_positions);
         g.classed("transitioning", false);
+        stats();
       });
 
       node.select(".hover").attr("d", hover_arc);
@@ -1050,6 +1060,15 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 });
 
 // Utility functions
+
+function stats() {
+  // confirm node counts
+  var stats = ["linearGradient", ".link", ".dept", "path", "text", "tspan"];
+  stats.forEach(function (sel) {
+    return console.log(sel + " : " + d3.selectAll(sel).size());
+  });
+  console.log("total : " + d3.selectAll("*").size());
+}
 
 function browser_width() {
   return window.innerWidth - 20; // account for cross-browser scrollbar on the right

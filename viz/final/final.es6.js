@@ -13,7 +13,7 @@
 // TODO
 
 //   - why do new links occasionally appear on focus?
-//     also gradients go off
+//     also gradients go off  e.g. faculty limited to 3
 
 //   - code cleanup: keep version where paths disappear                   DONE
 //   - move metrics to tspans after labels                                DONE
@@ -546,9 +546,13 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       return defs
     }
 
+    let uid = 0
+
     function append_chords(g, node_positions) {
 
       // set up for chords
+
+      uid++
 
       // ensure svg defs declared
       let defs = install_defs(g)
@@ -562,18 +566,19 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
                              link_id )
 
       var gradient_e = gradient.enter().append("linearGradient")
-        .attr("id", (d) => "gradient-" + link_id(d) )
         .attr("gradientUnits", "userSpaceOnUse")
 
-      gradient_e.attr("x1", (d) => arc.centroid(d.source)[0] )
-                .attr("y1", (d) => arc.centroid(d.source)[1] )
-                .attr("x2", (d) => arc.centroid(d.target)[0] )
-                .attr("y2", (d) => arc.centroid(d.target)[1] )
+      gradient.attr("id", (d) => "gradient-" + link_id(d) + "-" + uid )
+              .attr("x1", (d) => arc.centroid(d.source)[0] )
+              .attr("y1", (d) => arc.centroid(d.source)[1] )
+              .attr("x2", (d) => arc.centroid(d.target)[0] )
+              .attr("y2", (d) => arc.centroid(d.target)[1] )
 
       let stop = gradient.selectAll("stop")
         .data( (d) => [d.source_dept, d.target_dept] )
       stop.enter().append("stop")
-          .attr("offset", (d,i) => percent(i) )
+
+      stop.attr("offset", (d,i) => percent(i) )
           .attr("stop-color", (d) => fill(d) )
 
       // transition chords (i.e. cross-department links)
@@ -584,9 +589,10 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       link.enter().append("path")
         .attr("class", "link")
-        .attr("fill", (d) => "url(#gradient-" + link_id(d) + ")" )
-        .attr("opacity", 0)
+
+      link.attr("fill", (d) => "url(#gradient-" + link_id(d) + "-" + uid + ")" )
         .attr("d", chord)
+        .attr("opacity", 0)
 
       link.transition()
         .delay( (d,i) => i * 8 )
@@ -600,10 +606,10 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       // update chords layout
       let node_positions = layouts[order]
 
-      // remove all links before animation
+      // disallow focus during transition
       g.classed("transitioning", true)
-      g.selectAll("def linearGradient").remove()
-      g.selectAll(".link").remove()
+      g.selectAll(".link")
+        .attr("opacity", 0)
 
       // transition nodes (i.e. department arcs)
 
@@ -613,7 +619,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
       node.exit().remove()          // never actually used
 
       let node_e = node.enter().append("g")
-          .attr("class", "dept")
+          .attr("class", (d) => "dept dept-" + d.data)
 
       node_e.append("path")
         .attr("class", "arc")
@@ -666,6 +672,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         .call(endAll, () => {
           append_chords(g, node_positions)
           g.classed("transitioning", false)
+          stats()
         })
 
       node.select(".hover")
@@ -774,6 +781,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
              .on("mouseout", (d) => chord.each( function() { focus(d3.select(this), null) }))
 
       immediate = false
+
     }
 
     chart.relayout = function() {
@@ -1043,6 +1051,13 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
 
 // Utility functions
+
+function stats() {
+  // confirm node counts
+  let stats = [ "linearGradient", ".link", ".dept", "path", "text", "tspan" ]
+  stats.forEach( (sel) => console.log(sel + " : " + d3.selectAll(sel).size()))
+  console.log("total : " + d3.selectAll("*").size())
+}
 
 function browser_width() {
   return window.innerWidth - 20                 // account for cross-browser scrollbar on the right
