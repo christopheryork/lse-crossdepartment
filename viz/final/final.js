@@ -12,13 +12,18 @@
 
 // TODO
 
-//   - correct data: some faculty counts are 0
-//   - focus during transition causes craziness
+//   - why do new links occasionally appear on focus?
+
+//   - code cleanup: keep version where paths disappear                   DONE
+//   - move metrics to tspans after labels                                DONE
+
+//   - correct data: some faculty counts are 0                            DONE
+//   - focus during transition causes craziness                           DONE
 //   - interpolation error for balance on dual                            DONE
 
 //   - attach chord links to appropriate arcs                             DONE
 //   - correctly delayed interpolation for chord links                    DONE
-//   - format R + T key labels in chord diagram
+//   - format R + T key labels in chord diagram                           DONE
 
 //   - first chord is not focusing (probably a Javascript if(0) problem)  DONE
 
@@ -239,9 +244,12 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return d3.descending(balance_sum[a], balance_sum[b]);
       }),
       ticks: d3.range(0, n).map(function (i) {
-        var r = research_sum[i];
-        var t = teaching_sum[i];
-        return [r, t];
+        var v = balance_sum[i];
+        var prefix = v > 0 ? 'R+' : v < 0 ? 'T+' : '';
+        return prefix + Math.abs(v);
+      }),
+      hints: d3.range(0, n).map(function (i) {
+        return 'R ' + research_sum[i] + ' - T ' + teaching_sum[i];
       }) }
   };
 
@@ -304,7 +312,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
     viz.enter().append("g").attr("class", "viz").attr("opacity", 0);
 
-    viz.call(function (g) {
+    viz.attr("class", ['viz', cur_viz, cur_order].join(' ')).call(function (g) {
       return visualizations[g.data()].component(g, cur_order);
     });
 
@@ -375,7 +383,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
     var label_trim_len = 27;
 
-    var sorting_opacity = 0.75;
+    var sorting_opacity = 0.5;
     var defocus_opacity = 0.0625;
     var resting_opacity = 0.7;
     var label_delay = 1500;
@@ -410,16 +418,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       })(orders[key].sorted);
     });
 
-    var mode_dur = 5000;
-    var arc_trans_dur = 0.4;
-    var arc_trans_delay = function arc_trans_delay(d) {
-      var offset = τ + pie_rotate;
-      var arc_center = (d.startAngle + d.endAngle) / 2;
-      var radians = (offset - arc_center) % τ;
-      radians = radians > 0 ? radians : τ + radians;
-      return radians / τ * (1.0 - arc_trans_dur);
-    };
-    var arc_ease = d3.ease("cubic-in-out");
+    var mode_dur = 2500;
 
     // based on position of each node (arc), generate layout for links (chords)
     function calc_links(data, node_positions) {
@@ -573,80 +572,14 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       return defs;
     }
 
-    function update(g, order) {
-
-      // ensure svg defs declared
-      var defs = install_defs(g);
-
-      // update chords layout
-      var node_positions = layouts[order];
-
-      // transition nodes (i.e. department arcs)
-
-      var node = g.selectAll(".dept").data(node_positions, function (d) {
-        return d.data;
-      });
-
-      node.exit().remove(); // never actually used
-
-      var node_g = node.enter().append("g").attr("class", "dept");
-
-      node_g.append("path").attr("class", "arc").attr("id", function (d) {
-        return "arc-" + d.data;
-      }).attr("fill", function (d) {
-        return fill(d.data);
-      }).attr("d", arc); // TODO unclear why this is necessary
-
-      node_g.append("text").attr("class", "axis label").attr("dy", "-0.25em").append("textPath").attr("xlink:href", function (d) {
-        return "#arc-" + d.data;
-      });
-
-      // On DOM creation, render without any transitions
-      node_g.each(function () {
-        return immediate = true;
-      });
-
-      var label_info = node_g.append("g").attr("class", "label_info").attr("opacity", 0);
-      label_info.append('polyline').attr('marker-end', 'url(#markerCircle)');
-      label_info.append("text");
-
-      node_g.append("path").attr("class", "hover");
-
-      var trans = node.select(".arc").transition().duration(immediate ? 0 : 250).attr("opacity", sorting_opacity).transition().ease("linear").duration(immediate ? 0 : mode_dur).attrTween("d", function (d, i) {
-        // "this" below requires function...
-        var interp = d3.interpolate(this._current || d, d);
-        this._current = d;
-        var eased_interp = function eased_interp(t) {
-          return interp(arc_ease(t));
-        };
-        var embedded_interp = embed_interpolate(eased_interp, arc_trans_delay(d), arc_trans_dur);
-        return function (t) {
-          return arc(embedded_interp(t));
-        };
-      }).transition().duration(immediate ? 0 : 250).attr("opacity", 1);
-
-      node.select(".hover").attr("d", hover_arc);
-
-      node.select(".axis.label").attr("class", function (d) {
-        return "axis label " + (orders[order].major_ticks.has(d.data) ? "major" : "minor") + (d.endAngle - d.startAngle < axis_label_cutoff ? " narrow" : "");
-      }).select("textPath").text(function (d) {
-        return orders[order].ticks[d.data];
-      });
-
-      node.select(".label_info text").text(function (d) {
-        return trim(dept_names[d.data], label_trim_len);
-      });
-
-      node.call(relayout_labels);
-
-      // temporary
-      node.select("title").text(function (d, i) {
-        return dept_names[d.data];
-      });
+    function append_chords(g, node_positions) {
 
       // set up for chords
       //
       // TODO.  preferable not to calculate the link layout twice...
+
+      // ensure svg defs declared
+      var defs = install_defs(g);
 
       var percent = d3.format("%");
 
@@ -658,13 +591,11 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return calc_links(matrix, node_positions);
       }, link_id);
 
-      gradient.exit().remove();
-
       var gradient_e = gradient.enter().append("linearGradient").attr("id", function (d) {
         return "gradient-" + link_id(d);
       }).attr("gradientUnits", "userSpaceOnUse");
 
-      gradient.attr("x1", function (d) {
+      gradient_e.attr("x1", function (d) {
         return arc.centroid(d.source)[0];
       }).attr("y1", function (d) {
         return arc.centroid(d.source)[1];
@@ -677,12 +608,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       var stop = gradient.selectAll("stop").data(function (d) {
         return [d.source_dept, d.target_dept];
       });
-      stop.exit().remove();
-      stop.enter().append("stop");
-      stop.attr("offset", function (d, i) {
+      stop.enter().append("stop").attr("offset", function (d, i) {
         return percent(i);
-      });
-      stop.attr("stop-color", function (d) {
+      }).attr("stop-color", function (d) {
         return fill(d);
       });
 
@@ -692,41 +620,100 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
         return calc_links(matrix, node_positions);
       }, link_id);
 
-      link.exit().transition().duration(mode_dur).attr("opacity", 0).remove();
-
       link.enter().append("path").attr("class", "link").attr("fill", function (d) {
         return "url(#gradient-" + link_id(d) + ")";
-      }).attr("opacity", resting_opacity).attr("d", chord); // TODO unclear why this is necessary
+      }).attr("opacity", 0).attr("d", chord);
 
-      link.transition().duration(immediate ? 0 : 250).attr("opacity", defocus_opacity).transition().duration(immediate ? 0 : mode_dur).ease("linear").attrTween("d", function (d) {
+      link.transition().delay(function (d, i) {
+        return i * 8;
+      }).duration(1000).attr("opacity", resting_opacity);
+    }
+
+    function update(g, order) {
+
+      // update chords layout
+      var node_positions = layouts[order];
+
+      // remove all links before animation
+      g.classed("transitioning", true);
+      g.selectAll("def linearGradient").remove();
+      g.selectAll(".link").remove();
+
+      // transition nodes (i.e. department arcs)
+
+      var node = g.selectAll(".dept").data(node_positions, function (d) {
+        return d.data;
+      });
+
+      node.exit().remove(); // never actually used
+
+      var node_e = node.enter().append("g").attr("class", "dept");
+
+      node_e.append("path").attr("class", "arc").attr("id", function (d) {
+        return "arc-" + d.data;
+      }).attr("fill", function (d) {
+        return fill(d.data);
+      }).attr("d", arc); // TODO unclear why this is necessary
+
+      var node_textpath_e = node_e.append("text").attr("class", "axis label").attr("dy", "-0.25em").append("textPath").attr("xlink:href", function (d) {
+        return "#arc-" + d.data;
+      });
+      node_textpath_e.append('tspan').attr('class', 'tick').attr('x', '0.25em');
+      node_textpath_e.append('tspan').attr('class', 'hint').attr('x', '0.25em');
+
+      // On DOM creation, render without any transitions
+      node_e.each(function () {
+        return immediate = true;
+      });
+
+      var label_info = node_e.append("g").attr("class", "label_info").attr("opacity", 0);
+      label_info.append('polyline').attr('marker-end', 'url(#markerCircle)');
+      label_info.append("text");
+
+      node_e.append("path").attr("class", "hover");
+
+      var trans = node.transition().duration(immediate ? 0 : 250).attr("opacity", sorting_opacity);
+
+      trans = trans.transition().duration(immediate ? 0 : mode_dur);
+
+      trans.select(".arc").attrTween("d", function (d, i) {
         // "this" below requires function...
-        var d0 = this._current || d;
+        var interp = d3.interpolate(this._current || d, d);
         this._current = d;
-
-        var sourceInterp = function sourceInterp(t) {
-          return d3.interpolate(d0.source, d.source)(arc_ease(t));
-        };
-        var targetInterp = function targetInterp(t) {
-          return d3.interpolate(d0.target, d.target)(arc_ease(t));
-        };
-
-        sourceInterp = embed_interpolate(sourceInterp, arc_trans_delay(d.source), arc_trans_dur);
-        targetInterp = embed_interpolate(targetInterp, arc_trans_delay(d.target), arc_trans_dur);
-
-        var interp = function interp(t) {
-          return { source: sourceInterp(t),
-            target: targetInterp(t),
-            source_dept: d.source_dept,
-            target_dept: d.target_dept };
-        };
-
         return function (t) {
-          return chord(interp(t));
+          return arc(interp(t));
         };
-      }).transition().duration(immediate ? 0 : 250).attr("opacity", resting_opacity);
+      });
+
+      trans = trans.transition().duration(250).attr("opacity", 1).call(endAll, function () {
+        append_chords(g, node_positions);
+        g.classed("transitioning", false);
+      });
+
+      node.select(".hover").attr("d", hover_arc);
+
+      node.select(".axis.label").attr("class", function (d) {
+        return "axis label " + (orders[order].major_ticks.has(d.data) ? "major" : "minor") + (d.endAngle - d.startAngle < axis_label_cutoff ? " narrow" : "");
+      });
+
+      node.select(".axis.label .tick").text(function (d) {
+        return orders[order].ticks[d.data];
+      });
+
+      node.select(".axis.label .hint").text(function (d) {
+        return orders[order].hints ? orders[order].hints[d.data] : orders[order].ticks[d.data];
+      });
+
+      node.select(".label_info text").text(function (d) {
+        return trim(dept_names[d.data], label_trim_len);
+      });
+
+      node.call(relayout_labels);
     }
 
     function focus(g, dept) {
+
+      if (g.classed('transitioning')) return;
 
       var matrix = g.data()[0];
       var linked_to = function linked_to(d, dept) {
@@ -780,8 +767,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     }
 
     var chart = function chart(g, order) {
-
-      // margins
 
       // TODO.  not best to use a global here
       svg.attr('height', height);
@@ -848,7 +833,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
   function render_matrix() {
 
-    var margins = { top: 110, left: 0, right: 300, bottom: 0 };
+    var margins = { top: 130, left: 0, right: 320, bottom: 0 };
     var tick_margins = { top: 50, left: 8, right: 0, bottom: 0 };
     var tick2_margins = { top: 230, left: 8, right: 0, bottom: 0 };
 
@@ -857,7 +842,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
     var legend_width = 150;
     var legend_cell = 7;
     var legend_packing = 1;
-    var label_trim_value = 27;
+    var label_trim_value = 23;
 
     var mode_dur = 2500;
 
@@ -948,50 +933,27 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
         labs_e.call(highlight.bind(null, prefix + "_"));
 
-        var labs_e_g = labs_e.append("g").attr("class", function (d, i) {
+        var labs_e_text = labs_e.append("text").attr("class", function (d, i) {
           return "node dept" + i;
-        }).attr("transform", "translate(0," + scale.rangeBand() / 2.0 + ")");
+        }).attr("transform", "translate(0," + scale.rangeBand() / 2.0 + ")").attr("dx", "2.2em").attr("dy", "0.35em");
 
-        labs_e_g.append("text").attr("class", "label").attr("dx", "2.2em").attr("dy", "0.35em");
-
-        var metrics = labs.select(".node").selectAll(".metric").data(function (d, i) {
-          var vals = orders[order].ticks[i];
-          if (!Array.isArray(vals)) vals = [vals];
-          return vals.map(function (tick) {
-            return { dept: d, index: i, size: vals.length, tick: tick };
-          });
-        });
-
-        metrics.exit().remove();
-
-        metrics.enter().append("g");
-
-        metrics.append("rect").attr("rect-for-id", function (d, i) {
-          return "metric_" + prefix + "_" + to_class(d.dept) + i;
-        });
-
-        metrics.append("text").attr("id", function (d, i) {
-          return "metric_" + prefix + "_" + to_class(d.dept) + i;
-        }).attr("dx", "1em").attr("y", function (d, i) {
-          return i * 1.5 + "em";
-        });
+        labs_e_text.append("tspan").attr("class", "label");
+        var subs = labs_e_text.append("tspan").attr("dx", "0.5em");
+        subs.append("tspan").attr("class", "metric");
+        subs.append("tspan").attr("class", "hint");
 
         // update cycle
 
-        labs.select(".node .label").text(function (d) {
+        var node = labs.select(".node");
+        node.select(".label").text(function (d) {
           return trim(d, label_trim_value);
         });
-
-        metrics.attr("class", function (d, i) {
-          return "metric " + order + " value-" + i + (orders[order].major_ticks.has(d.index) ? " major" : " minor");
+        node.select(".metric").text(function (d, i) {
+          return orders[order].ticks[i];
         });
-        metrics.select("text").text(function (d) {
-          return d.tick;
-        }).attr("dy", function (d) {
-          return (-d.size + 1) * 0.75 + 0.35 + "em";
+        node.select(".hint").text(function (d, i) {
+          return orders[order].hints ? orders[order].hints[i] : orders[order].ticks[i];
         });
-
-        metrics.select("rect").call(bbox_for_id, { top: 1, right: 3, bottom: 1, left: 3 });
       }
 
       g.call(axis, "x");
@@ -1118,36 +1080,12 @@ function uniq() {
   return d3.set(vals).values();
 }
 
-// embed one interpolator into a larger time frame
-//   delay and dur should be between 0 & 1
-function embed_interpolate(f, delay, dur) {
-  if (delay < 0 || delay > 1 || dur < 0 || dur > 1) console.log("INTERPOLATION ERROR " + [delay, dur]);
-  return function (t) {
-    var tn = (t - delay) / dur;
-    //    console.log(t + " -> " + tn + " at " + [delay, dur])
-    return tn < 0 ? f(0) : tn > 1 ? f(1) : f(tn);
-  };
-}
-
-// SVG helper functions
-
-var id = (function () {
-  var a = 0;return function () {
-    return a++;
-  };
-})();
-
-function bbox_for_id() {
-  var rects = arguments.length <= 0 || arguments[0] === undefined ? null : arguments[0];
-  var padding = arguments.length <= 1 || arguments[1] === undefined ? { top: 0, right: 0, bottom: 0, left: 0 } : arguments[1];
-
-  rects = rects || d3.selectAll("rect[rect-for-id]");
-  rects.each(function () {
-    var elem = d3.select(this);
-    var text_id = elem.attr("rect-for-id");
-    var text = d3.select("#" + text_id);
-    var bbox = text[0][0].getBBox();
-    elem.attr("x", bbox.x - padding.left).attr("y", bbox.y - padding.top).attr("width", bbox.width + padding.left + padding.right).attr("height", bbox.height + padding.top + padding.bottom);
+function endAll(transition, callback) {
+  var n = 0;
+  transition.each(function () {
+    ++n;
+  }).each('end', function () {
+    if (! --n) callback.apply(this, arguments);
   });
 }
 

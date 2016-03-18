@@ -120,11 +120,25 @@ path {
 .dept .label {
   fill: black;
   font: 8px sans-serif;
-  opacity: 0.4;
+  opacity: 0.6;
 }
 
-.minor,
-.narrow {
+.dept .minor,
+.dept .narrow {
+  visibility: hidden;
+}
+
+.dept .hint {
+  visibility: hidden;
+}
+
+.dept:hover .minor,
+.dept:hover .narrow,
+.dept:hover .hint {
+  visibility: visible;
+  fill: red;
+}
+.dept:hover .label {
   visibility: hidden;
 }
 
@@ -143,25 +157,6 @@ path {
   fill: transparent;
 }
 
-.node .metric text {
-  fill: white;
-  font: 8px sans-serif;
-}
-
-.node .metric rect {
-  fill: black;
-  opacity: 0.2;
-}
-
-.node .metric.emphasis.value-1 rect { /* research */
-  fill: #35b7e5;
-  opacity: 0.4;
-}
-.node .metric.emphasis.value-0 rect { /* teaching */
-  fill: red;
-  opacity: 0.4;
-}
-
 .selected .background {
   fill: gray;
   opacity: 0.15;
@@ -169,6 +164,30 @@ path {
 
 .labels {
   cursor: pointer;
+}
+
+.node .metric,
+.node .hint {
+  fill: black;
+  font: 8px sans-serif;
+  opacity: 0.6;
+}
+
+.node .hint {
+  visibility: hidden;
+  fill: red;
+}
+
+.selected .metric {
+  display: none;
+}
+.selected .hint {
+  visibility: visible;
+}
+
+.matrix.department .node .metric,
+.matrix.department .node .hint {
+  visibility: hidden;
 }
 
 .legend text {
