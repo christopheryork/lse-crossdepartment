@@ -674,7 +674,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
         .call(endAll, () => {
           append_chords(g, node_positions)
           g.classed("transitioning", false)
-          stats()
         })
 
       node.select(".hover")

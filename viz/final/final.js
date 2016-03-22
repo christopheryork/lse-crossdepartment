@@ -694,7 +694,6 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
       trans = trans.transition().duration(250).attr("opacity", 1).call(endAll, function () {
         append_chords(g, node_positions);
         g.classed("transitioning", false);
-        stats();
       });
 
       node.select(".hover").attr("d", hover_arc);
