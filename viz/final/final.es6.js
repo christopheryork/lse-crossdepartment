@@ -12,9 +12,8 @@
 
 // TODO
 
-//   - why do new links occasionally appear on focus?
-//     also gradients go off  e.g. faculty limited to 3
-
+//   - why do new links occasionally appear on focus?                     DONE
+//     also gradients go off  e.g. faculty limited to 3                   DONE
 //   - code cleanup: keep version where paths disappear                   DONE
 //   - move metrics to tspans after labels                                DONE
 
@@ -261,6 +260,9 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
   function render_all() {
     render_viz_selector(cur_viz)
     render_order(cur_order)
+
+    d3.select("body")
+      .attr("class", cur_viz + " " + cur_order)
 
     let viz = svg_g.selectAll(".viz")
       .data([cur_viz], (key) => key)
@@ -862,7 +864,7 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv")
 
       // margins
 
-      svg.attr('height', width - margins.bottom)      // TODO. avoid global DOM alteration
+      svg.attr('height', width - margins.left - margins.right + margins.top)      // TODO. avoid global DOM alteration
 
       g.attr('transform', 'translate(' + margins.left + ',' + margins.top + ')')
 

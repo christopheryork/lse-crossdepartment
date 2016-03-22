@@ -1,5 +1,8 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
+
+<link ref="stylesheet" href="./normalize.css"/>
+
 <style>
 
 .disable-selection {
@@ -202,6 +205,26 @@ path {
   padding: 20px;
   background: #ececec;
   border-radius: 15px;
+  column-gap: 30px;
+  column-count: 3;
+  -moz-column-count: 3;
+  -webkit-column-count: 3;
+  widows: 2;
+  orphans: 2;
+}
+
+#gloss p {
+  margin-top: 0;
+  display: block;  /* control widows and orphans */
+}
+
+#gloss p.modal {
+  display: none;
+}
+
+body.chord #gloss p.modal.chord,
+body.matrix #gloss p.modal.matrix {
+  display: block;
 }
 
 
@@ -222,7 +245,13 @@ path {
 
 <svg></svg>
 
-<div id="gloss"><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p></div>
+<div id="gloss"><p>These visualizations explore data on interdepartmental research and teaching links across the <a href="http://www.lse.ac.uk/" target="new">London School of Economics.</a></p>
+<p class="modal chord">The <b>chord diagrams</b> allow reader to compare specific linkages between academic units on a department-by-department basis.  LSE's departments are arranged around the perimeter of each circle.  Bands between them indicate the presence of a interdisciplinary research project or a co-hosted degree program.</p>
+<p class="modal matrix">The <b>matrix</b> shows all linkages simultaneously.  The size of each square indicates how many total linkages exist between the two departments.  Its color indicates the balance between teaching (blue) and research (red to orange).</p>
+<p>Hover over a department to compare its research and teaching affiliations.  You will see that many departments pursue interdisciplinary research projects without a corresponding teaching affiliation.</p>
+<p>To find an individual department alphabetically, choose <i>"order by department"</i> at the left.  The remaining options provide alternative orders: by number of faculty members; count of total research and teaching links to other departments; or the balance (research-heavy or teaching-heavy) between those links.</p>
+<p class="modal chord">To see departmental linkages together in a matrix format all at once, click <i>"all the data."</i></p>
+<p>Data from "Cross-Departmental Research and Teaching at the LSE: Stocktaking Exercise," by Evelyn Pauls, Ph.D. Candidate in International Relations.</p></div>
 
 <script src="../js/d3.min.js"></script>
 <script src="../js/queue.min.js"></script>
