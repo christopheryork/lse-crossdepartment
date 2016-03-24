@@ -641,7 +641,10 @@ queue().defer(d3.csv, "../data-6.1,6.3.csv").defer(d3.csv, "../data-6.2.csv").de
 
       // disallow focus during transition
       g.classed("transitioning", true);
-      g.selectAll(".link").attr("opacity", 0);
+
+      // remove to keep Safari frame rates at acceptable levels (Chrome+Firefox are fine)
+      g.selectAll(".link").remove();
+      g.selectAll("linearGradient").remove();
 
       // transition nodes (i.e. department arcs)
 
